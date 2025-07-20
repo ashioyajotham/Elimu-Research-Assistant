@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "elimu-research-assistant"
+description = "An AI-powered research assistant for Kenyan educators to create localized, contextual educational content"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Ashioya Jotham", email = "victorashioya960@gmail.com"}
+]
+keywords = ["education", "kenya", "ai", "research", "teaching", "localized-content", "curriculum", "pedagogy"]
+
+[project.urls]
+Homepage = "https://github.com/ashioyajotham/elimu_research_assistant"
+Repository = "https://github.com/ashioyajotham/elimu_research_assistant"
+Issues = "https://github.com/ashioyajotham/elimu_research_assistant/issues"
+Documentation = "https://github.com/ashioyajotham/elimu_research_assistant#readme"
+
+[tool.elimu]
+target_region = "Kenya"
+education_levels = ["primary", "secondary", "tertiary"]
+supported_subjects = ["all"]
+language_support = ["english", "swahili"]

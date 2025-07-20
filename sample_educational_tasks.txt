@@ -1,0 +1,22 @@
+# Sample Educational Tasks for Elimu Research Assistant
+# One task per line - the agent will create localized educational content for each
+
+Create a Form 3 Business Studies lesson plan on the impact of M-Pesa on small enterprises in Kenya
+
+Generate a geography handout for Form 2 students about Kenya's renewable energy projects, focusing on geothermal power in Olkaria
+
+Develop a case study on coastal tourism in Mombasa for use in a Form 4 Geography class
+
+Create assessment questions for Form 1 History on Kenya's independence struggle
+
+Generate examples of quadratic equations using Kenyan sports statistics for Form 3 Mathematics
+
+Develop a lesson outline on Kenyan literature comparing Ngugi wa Thiong'o and Grace Ogot
+
+Create a student handout on the economic impact of the new Standard Gauge Railway
+
+Generate a comparison table of pre-colonial trade routes through modern-day Kenya
+
+Develop a science lesson plan on conservation efforts in Kenya's national parks
+
+Create a business studies case study on successful Kenyan entrepreneurs
