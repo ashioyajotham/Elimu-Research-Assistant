@@ -1,6 +1,3 @@
-# Sample Educational Tasks for Elimu Research Assistant
-# One task per line - the agent will create localized educational content for each
-
 Create a Form 3 Business Studies lesson plan on the impact of M-Pesa on small enterprises in Kenya
 
 Generate a geography handout for Form 2 students about Kenya's renewable energy projects, focusing on geothermal power in Olkaria
