@@ -37,7 +37,7 @@ BANNER = """
 │       [bold cyan]███████╗███████╗██║██║ ╚═╝ ██║╚██████╔╝[/bold cyan]                            │
 │       [bold cyan]╚══════╝╚══════╝╚═╝╚═╝     ╚═╝ ╚═════╝ [/bold cyan]                            │
 [bold blue]│                                                            │
-│  [bold green]AI-Powered Research Assistant for Kenyan Educators[/bold green]         │
+│  [bold green]An Intelligent Research Assistant for Kenyan Educators[/bold green]         │
 │  [bold yellow]"Bridging the Context Deficit in Education"[/bold yellow]               │
 ╰──────────────────────────────────────────────────────────────╯[/bold blue]
 """

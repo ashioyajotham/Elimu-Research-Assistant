@@ -2,7 +2,7 @@
 
 **A Tool for Localized Educational Content Creation in Kenya**
 
-*Elimu* (Swahili for "education") Research Assistant is an intelligent AI tool designed specifically for Kenyan educators to bridge the context deficit in education by generating locally relevant, credibly sourced educational content.
+*Elimu* (Swahili for "education") Research Assistant is an intelligent research tool using ReAct framework designed specifically for Kenyan educators to bridge the context deficit in education by generating locally relevant, credibly sourced educational content.
 
 ## The Challenge
 

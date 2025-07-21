@@ -24,8 +24,8 @@ setup(
     },
     author="Ashioya Jotham",
     author_email="victorashioya960@gmail.com",
-    description="An AI-powered research assistant for Kenyan educators to create localized, contextual educational content that bridges the context deficit in education.",
-    long_description=open("README.md").read(),
+    description="An intelligent research assistant for Kenyan educators to create localized, contextual educational content that bridges the context deficit in education.",
+    long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     url="https://github.com/ashioyajotham/elimu_research_assistant",
     project_urls={
