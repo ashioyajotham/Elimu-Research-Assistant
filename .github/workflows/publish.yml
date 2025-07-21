@@ -28,14 +28,13 @@ jobs:
         pip install -e .
         pip install pytest flake8
     
-    - name: Lint with flake8
+    - name: Lint with flake8 (critical errors only)
       run: |
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=__pycache__,*.pyc,build,dist
     
     - name: Test CLI import
       run: |
-        python -c "from elimu_research_assistant.cli import main; print('CLI import successful')"
+        python -c "from cli import main; print('CLI import successful')"
 
   publish:
     needs: test
@@ -62,4 +61,3 @@ jobs:
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         password: ${{ secrets.PYPI_API_TOKEN }}
-        repository-url: https://upload.pypi.org/legacy/

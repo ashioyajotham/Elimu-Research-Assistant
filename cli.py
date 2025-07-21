@@ -45,7 +45,7 @@ BANNER = """
 def display_banner():
     """Display the ASCII art banner."""
     console.print(BANNER)
-    console.print("\n[dim]Version 1.0.1 - Educational Content Creation Tool[/dim]\n")
+    console.print("\n[dim]Version 1.0.2 - Educational Content Creation Tool[/dim]\n")
     console.print("[dim]Developed by [bold magenta]Ashioya Jotham[/bold magenta] - Empowering Kenyan Education![/dim]\n")
 
 def display_intro():
