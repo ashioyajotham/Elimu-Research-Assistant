@@ -7,7 +7,7 @@ from config.config_manager import ConfigManager
 # Load environment variables from .env file
 load_dotenv()
 
-# Global configuration - UNCOMMENT THIS LINE
+# Global variable to hold the configuration
 _config = None
 
 def init_config():
@@ -72,7 +72,7 @@ def update_config(key, value):
     _config[key] = value
     
     # Save to file
-    config_dir = Path.home() / ".elimu_research_assistant"  # Fixed directory name
+    config_dir = Path.home() / ".elimu_research_assistant"
     config_file = config_dir / "config.json"
     
     with open(config_file, "w") as f:
