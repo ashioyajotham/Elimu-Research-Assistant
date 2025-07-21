@@ -45,7 +45,7 @@ BANNER = """
 def display_banner():
     """Display the ASCII art banner."""
     console.print(BANNER)
-    console.print("\n[dim]Version 1.0.0 - Educational Content Creation Tool[/dim]\n")
+    console.print("\n[dim]Version 1.0.1 - Educational Content Creation Tool[/dim]\n")
     console.print("[dim]Developed by [bold magenta]Ashioya Jotham[/bold magenta] - Empowering Kenyan Education![/dim]\n")
 
 def display_intro():
@@ -124,7 +124,7 @@ def _extract_preview_sections(content, max_length=2000):
 @click.option('--no-config', is_flag=True, help="Skip API key checks (commands requiring API keys will fail)")
 def cli(verbose, no_config):
     """
-    Elimu Research Assistant - AI-powered educational content creation for Kenyan educators.
+    Elimu Research Assistant - An intelligent educational content creation for Kenyan educators.
     
     Create localized, contextual educational materials that bridge the gap between 
     curriculum and students' lived experiences in Kenya.
