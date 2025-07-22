@@ -1,6 +1,6 @@
-# Contributing to Web Research Agent
+# Contributing to Elimu Research Assistant
 
-First off, thank you for considering contributing to Web Research Agent! It's people like you that make this tool better for everyone.
+First off, thank you for considering contributing to Elimu Research Assistant! It's people like you that make this tool better for everyone.
 
 ## Getting Started
 
@@ -16,8 +16,8 @@ First off, thank you for considering contributing to Web Research Agent! It's pe
 1. Fork the repository on GitHub
 2. Clone your fork:
    ```bash
-   git clone https://github.com/YOUR-USERNAME/web_research_agent.git
-   cd web_research_agent
+   git clone https://github.com/YOUR-USERNAME/elimu_research_assistant.git
+   cd elimu_research_assistant
    ```
 
 3. Set up a virtual environment:
@@ -39,6 +39,30 @@ First off, thank you for considering contributing to Web Research Agent! It's pe
    GEMINI_API_KEY=your_gemini_api_key_here
    SERPER_API_KEY=your_serper_key_here
    ```
+
+## Contributing
+
+We welcome contributions from educators, developers, and anyone passionate about improving education in Kenya.
+
+### For Educators
+- Provide [feedback on generated content quality and relevance](https://github.com/ashioyajotham/elimu_research_assistant/issues)
+- Suggest common use cases and classroom scenarios
+- Share successful classroom implementations and best practices
+- Report content gaps, inaccuracies, or cultural sensitivity issues
+- Test new features with real students and provide feedback
+
+### For Developers
+- Enhance localization algorithms for Kenyan context
+- Improve educational content formatting and structure
+- Add new source integration capabilities
+- Optimize for low-bandwidth environments common in Kenyan schools
+- Develop mobile-friendly interfaces
+
+### For Education Researchers
+- Validate pedagogical effectiveness of generated content
+- Study impact on student engagement and learning outcomes
+- Research cultural context integration effectiveness
+- Analyze curriculum alignment accuracy
 
 ## Development Workflow
 
@@ -131,4 +155,4 @@ By contributing, you agree that your contributions will be licensed under the sa
 
 Feel free to reach out if you have any questions about contributing!
 
-Thank you for making Web Research Agent better!
+Thank you for making Elimu Research Assistant better!
