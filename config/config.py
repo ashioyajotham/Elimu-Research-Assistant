@@ -7,8 +7,8 @@ from config.config_manager import ConfigManager
 # Load environment variables from .env file
 load_dotenv()
 
-# Global variable to hold the configuration
-_config = ConfigManager()
+# Global variable to hold the configuration - initialize as None
+_config = None
 
 def init_config():
     """Initialize the configuration for Elimu Research Assistant."""
@@ -49,22 +49,22 @@ def init_config():
     if os.environ.get("SERPER_API_KEY"):
         merged_config["serper_api_key"] = os.environ.get("SERPER_API_KEY")
     
-    # Create a ConfigManager instance instead of a plain dict
+    # Create a ConfigManager instance and assign to global
     _config = ConfigManager(merged_config)
     return _config
 
 def get_config():
     """Get the current configuration."""
+    global _config
     if _config is None:
-        return init_config()
+        _config = init_config()
     return _config
 
 def update_config(key, value):
     """Update configuration and save to file."""
-    global _config  # Keep this one since we modify _config
     
     if _config is None:
-        init_config()
+        get_config()  # This will initialize _config
     
     # Update the value
     _config[key] = value
