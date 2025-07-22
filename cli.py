@@ -41,6 +41,11 @@ BANNER = """
 │  [bold yellow]"Bridging the Context Deficit in Education"[/bold yellow]               │
 ╰──────────────────────────────────────────────────────────────╯[/bold blue]
 """
+try:
+    from . import __version__
+except ImportError:
+    __version__ = "1.0.2" # Default version if import fails
+
 
 def display_banner():
     """Display the ASCII art banner."""
@@ -119,7 +124,7 @@ def _extract_preview_sections(content, max_length=2000):
     return preview
 
 @click.group()
-@click.version_option(version="1.0.0")
+@click.version_option(version="1.0.2")
 @click.option('--verbose', '-v', is_flag=True, help="Enable verbose logging")
 @click.option('--no-config', is_flag=True, help="Skip API key checks (commands requiring API keys will fail)")
 def cli(verbose, no_config):

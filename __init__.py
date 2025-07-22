@@ -1,2 +1,11 @@
+"""
+Elimu Research Assistant - An intelligent research tool for Kenyan educators.
+"""
 
-# Empty init file to make the root directory a package
+__version__ = "1.0.2"
+__author__ = "Ashioya Jotham"
+__email__ = "victorashioya960@gmail.com"
+
+from .cli import main
+
+__all__ = ["main"]
