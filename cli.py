@@ -600,9 +600,11 @@ def shell(verbose):
     # Create command completer with context-aware suggestions
     commands = WordCompleter([
         'search', 'exit', 'help', 'config', 'clear', 'version',
-        'search "What is machine learning"',
-        'search "Latest advances in AI"',
-        'search "How to implement neural networks"'
+        'search "Develop a case study on coastal tourism in Kenya"',
+        'search "Generate a handout on Kenya\'s independence history"',
+        'search "Create a student assessment for Form 2 Mathematics"',
+        'search "Design a lesson on renewable energy sources in Kenya"',
+        'search "Develop a case study on the history of Swahili culture"',
     ], ignore_case=True)
     
     # Set up proper styling for prompt

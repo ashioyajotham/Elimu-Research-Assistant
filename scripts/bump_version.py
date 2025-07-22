@@ -1,21 +1,14 @@
-#!/usr/bin/env python3
-import re
 import sys
 from pathlib import Path
 
 def bump_version(version_type="patch"):
-    """Bump version in setup.py and __init__.py"""
+    """Bump version in VERSION file"""
     
-    # Read current version from setup.py
-    setup_py = Path("setup.py")
-    content = setup_py.read_text()
+    # Read current version from VERSION file
+    version_file = Path("VERSION")
+    current_version = version_file.read_text().strip()
     
-    version_match = re.search(r'version="(\d+)\.(\d+)\.(\d+)"', content)
-    if not version_match:
-        print("Could not find version in setup.py")
-        return
-    
-    major, minor, patch = map(int, version_match.groups())
+    major, minor, patch = map(int, current_version.split('.'))
     
     if version_type == "major":
         major += 1
@@ -29,16 +22,8 @@ def bump_version(version_type="patch"):
     
     new_version = f"{major}.{minor}.{patch}"
     
-    # Update setup.py
-    new_content = re.sub(r'version="[\d\.]+"', f'version="{new_version}"', content)
-    setup_py.write_text(new_content)
-    
-    # Update __init__.py
-    init_py = Path("elimu_research_assistant/__init__.py")
-    if init_py.exists():
-        init_content = init_py.read_text()
-        new_init_content = re.sub(r'__version__ = "[\d\.]+"', f'__version__ = "{new_version}"', init_content)
-        init_py.write_text(new_init_content)
+    # Update VERSION file
+    version_file.write_text(new_version)
     
     print(f"Version bumped to {new_version}")
     return new_version

@@ -1,8 +1,20 @@
 from setuptools import setup, find_packages
+import os
+from pathlib import Path
+
+# Read version from VERSION file
+def get_version():
+    version_file = Path(__file__).parent / "VERSION"
+    return version_file.read_text().strip()
+
+# Read the contents of your README file
+this_directory = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
 
 setup(
     name="elimu-research-assistant",
-    version="1.0.2",
+    version=get_version(),
     packages=find_packages(),
     include_package_data=True,
     py_modules=["cli"],
@@ -25,7 +37,7 @@ setup(
     author="Ashioya Jotham",
     author_email="victorashioya960@gmail.com",
     description="An intelligent research assistant for Kenyan educators to create localized, contextual educational content that bridges the context deficit in education.",
-    long_description=open("README.md", encoding="utf-8").read(),
+    long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/ashioyajotham/elimu_research_assistant",
     project_urls={
