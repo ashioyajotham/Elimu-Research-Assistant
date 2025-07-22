@@ -50,7 +50,7 @@ except ImportError:
 def display_banner():
     """Display the ASCII art banner."""
     console.print(BANNER)
-    console.print("\n[dim]Version 1.0.1 - Educational Content Creation Tool[/dim]\n")
+    console.print(f"\n[dim]Version {__version__} - Educational Content Creation Tool[/dim]\n")
     console.print("[dim]Developed by [bold magenta]Ashioya Jotham[/bold magenta] - Empowering Kenyan Education![/dim]\n")
 
 def display_intro():
@@ -124,7 +124,7 @@ def _extract_preview_sections(content, max_length=2000):
     return preview
 
 @click.group()
-@click.version_option(version="1.0.2")
+@click.version_option(__version__, message="%(prog)s version %(version)s")
 @click.option('--verbose', '-v', is_flag=True, help="Enable verbose logging")
 @click.option('--no-config', is_flag=True, help="Skip API key checks (commands requiring API keys will fail)")
 def cli(verbose, no_config):
@@ -616,7 +616,7 @@ def shell(verbose):
         auto_suggest=AutoSuggestFromHistory(),
         completer=commands,
         style=style,
-        message="elimu> "  # Educational prompt
+        message="elimu> "
     )
     
     # Initialize agent
@@ -630,7 +630,7 @@ def shell(verbose):
     
     while True:
         try:
-            user_input = session.prompt("web-research> ")
+            user_input = session.prompt("elimu> ")
             
             if not user_input.strip():
                 continue
@@ -645,7 +645,7 @@ def shell(verbose):
                 continue
                 
             if user_input.lower() == 'version':
-                console.print("[cyan]Web Research Agent v1.0.1[/cyan]")
+                console.print(f"[cyan]Elimu Research Assistant v{__version__}[/cyan]")
                 continue
             
             if user_input.lower() == 'help':
