@@ -8,7 +8,7 @@ from config.config_manager import ConfigManager
 load_dotenv()
 
 # Global variable to hold the configuration
-_config = None
+_config = ConfigManager()
 
 def init_config():
     """Initialize the configuration for Elimu Research Assistant."""
