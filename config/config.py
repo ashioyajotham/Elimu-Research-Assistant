@@ -55,16 +55,14 @@ def init_config():
 
 def get_config():
     """Get the current configuration."""
-    global _config
     if _config is None:
         return init_config()
     return _config
 
 def update_config(key, value):
     """Update configuration and save to file."""
-    global _config
+    global _config  # Keep this one since we modify _config
     
-    # Initialize if not already initialized
     if _config is None:
         init_config()
     
