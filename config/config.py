@@ -7,8 +7,8 @@ from config.config_manager import ConfigManager
 # Load environment variables from .env file
 load_dotenv()
 
-# Global configuration
-_config = {}
+# Global variable to hold the configuration
+_config = ConfigManager()
 
 def init_config():
     """Initialize the configuration for Elimu Research Assistant."""
@@ -56,7 +56,7 @@ def init_config():
 def get_config():
     """Get the current configuration."""
     global _config
-    if not _config:
+    if _config is None:
         return init_config()
     return _config
 
@@ -65,14 +65,14 @@ def update_config(key, value):
     global _config
     
     # Initialize if not already initialized
-    if not _config:
+    if _config is None:
         init_config()
     
     # Update the value
     _config[key] = value
     
     # Save to file
-    config_dir = Path.home() / ".web_research_agent"
+    config_dir = Path.home() / ".elimu_research_assistant"
     config_file = config_dir / "config.json"
     
     with open(config_file, "w") as f:
