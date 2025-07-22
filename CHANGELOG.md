@@ -7,16 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.4] - 2025-07-22
+## [1.0.3] - 2025-07-22
 
 ### Added
-- 
+- Dynamic versioning system using VERSION file as single source of truth
+- Enhanced MANIFEST.in to include all necessary package files
+- Improved version bump script with changelog integration
 
 ### Changed
-- 
+- Migrated from hardcoded versions to dynamic VERSION file system
+- Updated setup.py to read version from VERSION file
+- Enhanced __init__.py to dynamically load version
+- Improved package structure for better maintainability
 
 ### Fixed
-- 
+- Resolved version synchronization issues across all components
+- Fixed flake8 compliance in config.py global variable usage
+- Eliminated hardcoded version references in CLI and setup files
+- Improved GitHub Actions workflow compatibility
 
 
 ### Added
