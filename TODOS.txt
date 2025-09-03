@@ -1,0 +1,2 @@
+> We are v1.0.4
+> Update console output for version bumping

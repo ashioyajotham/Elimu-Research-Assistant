@@ -114,7 +114,7 @@ elimu config --format markdown  # Set default output format
 
 ## Project Status
 
-The core AI engine is technologically mature, evolved from the 'Web Research Agent' academic project. This educational adaptation is being developed through:
+The core AI engine is technologically mature and is being adapted for education through:
 
 - **Pilot Partnership**: Collaboration with Kenyan secondary school teachers
 - **User-Centric Design**: Direct feedback from classroom practitioners
