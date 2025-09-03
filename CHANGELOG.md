@@ -53,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.1] - 2025-01-21
 
 ### Changed
-- Updated branding from "Web Research Agent" to "Elimu Research Assistant"
+- Updated branding to "Elimu Research Assistant"
 - Enhanced educational focus in all user-facing text
 - Improved CLI prompts and messaging for educators
 
@@ -106,7 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Digital literacy promotion
 
 ### Changed
-- Evolved from academic "Web Research Agent" to education-focused tool
+- Evolved from a general-purpose research tool to an education-focused tool
 - Specialized algorithms for educational content synthesis
 - Enhanced user experience for classroom practitioners
 - Improved source prioritization for Kenyan educational context
