@@ -29,8 +29,8 @@ class ElimuConfigManager(BaseConfigManager):
             "literature",
         ],
         "language_support": ["english", "swahili"],
-        "model_name": "gemini-1.5-flash",
-        "model_fallback": "gemini-1.5-pro",
+        "model_name": "gemini-2.0-flash",
+        "model_fallback": "gemini-2.5-flash",
         "model_temperature": 0.15,
         "max_iterations": 12,
         "max_tool_output_length": 6000,
@@ -64,14 +64,24 @@ class ElimuConfigManager(BaseConfigManager):
             self.config["supported_subjects"] = self.DEFAULT_CONFIG["supported_subjects"]
             updated = True
 
+        # Map legacy model names to current stable models
+        legacy_models = {
+            "gemini-1.5-flash": "gemini-2.0-flash",
+            "gemini-1.5-flash-latest": "gemini-2.0-flash",
+            "gemini-1.5-flash-8b": "gemini-2.0-flash",
+            "gemini-2.0-flash-exp": "gemini-2.0-flash",
+            "gemini-1.5-pro": "gemini-2.5-flash",
+            "gemini-1.5-pro-latest": "gemini-2.5-flash",
+        }
+
         legacy_model = self.config.get("model_name")
-        if legacy_model in {"gemini-1.5-flash-latest", "gemini-2.0-flash-exp"}:
-            self.config["model_name"] = "gemini-1.5-flash"
+        if legacy_model in legacy_models:
+            self.config["model_name"] = legacy_models[legacy_model]
             updated = True
 
         fallback = self.config.get("model_fallback")
-        if fallback in {"gemini-1.5-flash-latest", "gemini-2.0-flash-exp"}:
-            self.config["model_fallback"] = "gemini-1.5-pro"
+        if fallback in legacy_models:
+            self.config["model_fallback"] = legacy_models[fallback]
             updated = True
 
         if updated:
