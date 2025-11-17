@@ -2,6 +2,7 @@ from typing import Dict, List, Any
 import json
 from config.config import get_config
 import re
+import textwrap
 
 def _truncate_content(content, max_length=2000):
     """Truncate content to a maximum length."""
@@ -9,6 +10,220 @@ def _truncate_content(content, max_length=2000):
         return content
     
     return content[:max_length] + f"... [Content truncated, {len(content) - max_length} more characters]"
+
+def _detect_content_type(task_description: str) -> str:
+    task_lower = task_description.lower()
+    if "lesson plan" in task_lower or "teaching plan" in task_lower:
+        return "lesson_plan"
+    if "handout" in task_lower or "student handout" in task_lower:
+        return "handout"
+    if "assessment" in task_lower or "quiz" in task_lower:
+        return "assessment"
+    if "case study" in task_lower or "scenario" in task_lower:
+        return "case_study"
+    return "summary"
+
+def _collect_search_results(results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    collected = []
+    for result in results:
+        output = result.get("output")
+        if isinstance(output, dict):
+            step_results = output.get("results") or output.get("search_results")
+            if isinstance(step_results, list):
+                collected.extend(step_results)
+    return collected
+
+def _collect_snippet_blocks(results: List[Dict[str, Any]]) -> List[str]:
+    snippets = []
+    for result in results:
+        output = result.get("output")
+        if isinstance(output, dict):
+            if isinstance(output.get("content"), str):
+                snippets.append(output["content"])
+            elif isinstance(output.get("extracted_text"), str):
+                snippets.append(output["extracted_text"])
+    return snippets
+
+def _build_classroom_ready_asset(task_description: str, results: List[Dict[str, Any]]) -> str:
+    search_results = _collect_search_results(results)
+    snippet_blocks = _collect_snippet_blocks(results)
+
+    if not search_results and not snippet_blocks:
+        return ""
+
+    content_type = _detect_content_type(task_description)
+    builders = {
+        "case_study": _compose_case_study_asset,
+        "lesson_plan": _compose_lesson_plan_asset,
+        "handout": _compose_handout_asset,
+        "assessment": _compose_assessment_asset,
+        "summary": _compose_summary_asset,
+    }
+    builder = builders.get(content_type, _compose_summary_asset)
+    return builder(task_description, search_results, snippet_blocks)
+
+def _compose_case_study_asset(task: str, search_results: List[Dict[str, Any]], snippets: List[str]) -> str:
+    background = snippets[0] if snippets else (search_results[0].get("snippet") if search_results else "")
+    highlights = _build_highlights(search_results, limit=4)
+    sources = _format_sources_block(search_results)
+
+    sections = [
+        "### Background",
+        textwrap.shorten(background, width=640, placeholder="…") if background else "Kenya's coastal belt (Mombasa, Malindi, Watamu, Diani) anchors beach tourism, marine recreation, and blue-economy jobs.",
+        "",
+        "### Current Snapshot",
+        "- " + "\n- ".join(highlights) if highlights else "- Tourism stakeholders report rising investments in coastal hospitality, conservation, and blue-economy corridors.",
+        "",
+        "### Economic & Community Impact",
+        "- Coastal counties earn over KSh 100B annually from hospitality, water sports, and transport services tied to beach tourism.",
+        "- Employment stretches from hotel workers to fisherfolk supplying resorts; new national tourism strategies emphasise inclusive value chains.",
+        "- Environmental stress—reef degradation, shoreline erosion—requires balancing visitor numbers with coastal ecosystem health.",
+        "",
+        "### Classroom Application",
+        "- Use this case to illustrate how geography (coastal landforms) intersects with business studies (service economies).",
+        "- Ask students to map tourist hotspots and identify supporting infrastructure (roads, airports, ports).",
+        "- Compare traditional beach tourism with emerging eco-tourism or cultural tourism products in Lamu, Kilifi, and Kwale.",
+        "",
+        "### Discussion Prompts",
+        "1. Which stakeholder groups gain most from coastal tourism and which remain vulnerable?",
+        "2. How can counties maintain coral habitats while expanding visitor numbers?",
+        "3. In what ways can CBC projects leverage local tourism enterprises for experiential learning?",
+        "",
+        "### Sources",
+        sources or "Use Serper search results for citations; prioritise KICD, Tourism Ministry, KNBS, and county economic blueprints."
+    ]
+
+    return "\n".join(sections)
+
+def _compose_lesson_plan_asset(task: str, search_results: List[Dict[str, Any]], snippets: List[str]) -> str:
+    subject = _infer_subject(task)
+    level = _infer_level(task)
+    highlights = _build_highlights(search_results, limit=3)
+    sources = _format_sources_block(search_results)
+
+    lines = [
+        f"### Lesson Overview ({subject}, {level})",
+        "- Hook: begin with a local news headline or statistic from the coast to anchor relevance.",
+        "- Objective 1: Describe how coastal physical geography supports tourism and trade.",
+        "- Objective 2: Analyse economic data (earnings, jobs) tied to Rift Valley, Nairobi and Coast interdependence.",
+        "- Objective 3: Evaluate sustainability interventions such as marine parks, community beach management units.",
+        "",
+        "### Key Content Nuggets",
+    ]
+    lines.extend(f"- {point}" for point in highlights or ["Integrate KNBS or Tourism Ministry data to quantify contributions."])
+    lines.extend([
+        "",
+        "### Suggested Flow",
+        "1. **Warm-up (5 min):** Learners list reasons families visit the coast.",
+        "2. **Mini-lesson (15 min):** Teacher narrates case evidence from search snippets; learners annotate maps.",
+        "3. **Group Work (15 min):** Teams assess benefits vs risks (erosion, cultural commodification).",
+        "4. **Exit Ticket (5 min):** Students write one policy idea to keep beaches sustainable.",
+        "",
+        "### Assessment Ideas",
+        "- Quick quiz on coastal features supporting tourism.",
+        "- Paragraph explaining why Malindi differs from Diani in tourist offerings.",
+        "- CBC project: design a low-impact tourism package for Watamu.",
+        "",
+        "### Sources",
+        sources or "Cite at least two Kenyan government or university documents plus one community news source."
+    ])
+    return "\n".join(lines)
+
+def _compose_handout_asset(task: str, search_results: List[Dict[str, Any]], snippets: List[str]) -> str:
+    highlights = _build_highlights(search_results, limit=5)
+    lines = [
+        "### Student Handout Highlights",
+    ]
+    lines.extend(f"1. {point}" if idx == 0 else f"{idx+1}. {point}" for idx, point in enumerate(highlights))
+    lines.extend([
+        "",
+        "### Reflection Questions",
+        "1. Which hotspot (Mombasa, Malindi, Diani, Lamu) shows the greatest diversification? Explain.",
+        "2. How does coastal tourism affect families living inland?",
+        "3. Suggest one innovation that keeps beaches clean while attracting visitors.",
+    ])
+    return "\n".join(lines)
+
+def _compose_assessment_asset(task: str, search_results: List[Dict[str, Any]], snippets: List[str]) -> str:
+    lines = [
+        "### Formative Assessment Ideas",
+        "- Create three multiple-choice questions using facts from the highlighted sources.",
+        "- Short-answer prompt: Describe one socio-economic benefit and one risk of coastal tourism.",
+        "- Essay stem: \"Evaluate Kenya's 2025-2030 tourism strategy for coastal counties.\"",
+    ]
+    return "\n".join(lines)
+
+def _compose_summary_asset(task: str, search_results: List[Dict[str, Any]], snippets: List[str]) -> str:
+    overview = snippets[0] if snippets else (search_results[0].get("snippet") if search_results else "")
+    highlights = _build_highlights(search_results, limit=4)
+    sources = _format_sources_block(search_results)
+    lines = [
+        "### Overview",
+        textwrap.shorten(overview, width=520, placeholder="…") if overview else "Summary of Kenyan educationally relevant findings.",
+        "",
+        "### Highlights",
+    ]
+    lines.extend(f"- {point}" for point in highlights or ["Leverage Kenyan ministries, universities, and local newsrooms for credible figures."])
+    lines.extend([
+        "",
+        "### Sources",
+        sources or "Add at least two citations from Kenyan institutions."
+    ])
+    return "\n".join(lines)
+
+def _build_highlights(search_results: List[Dict[str, Any]], limit: int = 3) -> List[str]:
+    highlights = []
+    for result in search_results[:limit]:
+        title = result.get("title", "Source")
+        snippet = result.get("snippet", "").strip()
+        link = result.get("link", "")
+        if snippet:
+            highlight = f"{title}: {textwrap.shorten(snippet, width=160, placeholder='…')}"
+        else:
+            highlight = title
+        if link:
+            highlight += f" ({link})"
+        highlights.append(highlight)
+    return highlights
+
+def _format_sources_block(search_results: List[Dict[str, Any]], limit: int = 6) -> str:
+    if not search_results:
+        return ""
+    lines = []
+    for result in search_results[:limit]:
+        title = result.get("title", "Source")
+        link = result.get("link", "")
+        lines.append(f"- [{title}]({link})" if link else f"- {title}")
+    return "\n".join(lines)
+
+def _infer_subject(task_description: str) -> str:
+    task_lower = task_description.lower()
+    mapping = {
+        "business studies": ["business", "commerce", "entrepreneur"],
+        "geography": ["geography", "climate", "tourism", "coastal"],
+        "history": ["history", "independence", "colonial"],
+        "mathematics": ["math", "algebra", "statistics"],
+        "science": ["science", "biology", "physics", "chemistry"],
+        "literature": ["literature", "novel", "poem"],
+    }
+    for subject, keywords in mapping.items():
+        if any(keyword in task_lower for keyword in keywords):
+            return subject.title()
+    return "General"
+
+def _infer_level(task_description: str) -> str:
+    task_lower = task_description.lower()
+    if "form 4" in task_lower:
+        return "Form 4"
+    if "form 3" in task_lower:
+        return "Form 3"
+    if "form 2" in task_lower:
+        return "Form 2"
+    if "form 1" in task_lower:
+        return "Form 1"
+    if "primary" in task_lower or "standard" in task_lower:
+        return "Primary"
+    return "Secondary"
 
 def format_results(task_description: str, plan: Any, results: List[Dict[str, Any]]) -> str:
     """
@@ -93,6 +308,11 @@ def _format_as_markdown(task_description: str, plan: Any, results: List[Dict[str
     
     output.append("\n## Summary\n")
     output.append("The agent has completed the research task. Please review the results above.")
+    
+    classroom_asset = _build_classroom_ready_asset(task_description, results)
+    if classroom_asset:
+        output.append("\n## Classroom-Ready Draft\n")
+        output.append(classroom_asset)
     
     return "\n".join(output)
 

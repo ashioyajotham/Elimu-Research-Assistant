@@ -52,7 +52,11 @@ def configure_logging():
     root_logger.addHandler(handler)
     
     # Also configure specific loggers
-    for logger_name in ["agent.agent", "tools.search", "tools.browser", "tools.code_generator"]:
+    for logger_name in [
+        "elimu_react.agent",
+        "elimu_react.tools.search",
+        "elimu_react.tools.scrape",
+    ]:
         logger = logging.getLogger(logger_name)
         for h in list(logger.handlers):
             logger.removeHandler(h)

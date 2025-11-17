@@ -29,8 +29,11 @@ class ElimuConfigManager(BaseConfigManager):
             "literature",
         ],
         "language_support": ["english", "swahili"],
-        "model_name": "gemini-2.0-flash-exp",
-        "model_fallback": "gemini-1.5-flash-latest",
+        "model_name": "gemini-1.5-flash",
+        "model_fallback": "gemini-1.5-pro",
+        "model_temperature": 0.15,
+        "max_iterations": 12,
+        "max_tool_output_length": 6000,
     }
 
     ENV_MAPPING = {
@@ -46,11 +49,33 @@ class ElimuConfigManager(BaseConfigManager):
         super().__init__(config_path=config_path, env_file=env_path)
         self.config_file = CONFIG_FILE
         self._apply_default_values()
+        self._normalize_legacy_values()
 
     def _apply_default_values(self) -> None:
         for key, value in self.DEFAULT_CONFIG.items():
             if self.get(key) is None:
                 self.config[key] = value
+
+    def _normalize_legacy_values(self) -> None:
+        """Bring forward configs saved before v1.1.0."""
+        updated = False
+
+        if self.config.get("supported_subjects") == ["all"]:
+            self.config["supported_subjects"] = self.DEFAULT_CONFIG["supported_subjects"]
+            updated = True
+
+        legacy_model = self.config.get("model_name")
+        if legacy_model in {"gemini-1.5-flash-latest", "gemini-2.0-flash-exp"}:
+            self.config["model_name"] = "gemini-1.5-flash"
+            updated = True
+
+        fallback = self.config.get("model_fallback")
+        if fallback in {"gemini-1.5-flash-latest", "gemini-2.0-flash-exp"}:
+            self.config["model_fallback"] = "gemini-1.5-pro"
+            updated = True
+
+        if updated:
+            self._persist()
 
     def update(self, key: str, value: Any, store_in_keyring: bool = True) -> bool:
         result = super().update(key, value, store_in_keyring)

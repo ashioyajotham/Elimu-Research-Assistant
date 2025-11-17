@@ -12,8 +12,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Now we can import from our modules using absolute imports
 from utils.logger import get_logger, set_log_level
-from agent.agent import ElimuResearchAgent
 from config.config import get_config, init_config
+from elimu_react import build_elimu_agent
+from utils.react_output import format_react_markdown
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -169,6 +170,29 @@ def _build_preview_panel(content, metadata=None):
     
     return Panel(table, title="Results Preview", border_style="cyan")
 
+def _format_react_markdown(task: str, final_answer: str, trace: list) -> str:
+    lines = [f"# {task}", "", "## Final Answer", ""]
+    lines.append(final_answer.strip() if final_answer.strip() else "_No answer generated._")
+    if trace:
+        lines.append("\n## ReAct Trace\n")
+        for step in trace:
+            lines.append(f"### Step {step.get('step')}")
+            lines.append(f"- Thought: {step.get('thought', '')}")
+            if step.get("action"):
+                lines.append(f"- Action: {step['action']}")
+                if step.get("action_input"):
+                    lines.append(f"- Action Input: `{step['action_input']}`")
+            if step.get("observation"):
+                lines.append(f"- Observation: {step['observation']}")
+            lines.append("")
+    return "\n".join(lines)
+
+def _run_react_agent(task: str):
+    agent = build_elimu_agent()
+    final_answer = agent.run(task)
+    trace = agent.get_execution_trace()
+    return final_answer, trace
+
 @click.group()
 @click.version_option(__version__, message="%(prog)s version %(version)s")
 @click.option('--verbose', '-v', is_flag=True, help="Enable verbose logging")
@@ -267,7 +291,7 @@ def _check_required_keys(agent_initialization=False):
     for key, display_name in required_keys.items():
         if key not in missing_keys:
             continue
-        
+            
         value = ""
         while not value:
             value = click.prompt(f"Enter your {display_name}", hide_input=True).strip()
@@ -373,10 +397,8 @@ def research(query, output, format):
     config = get_config()
     config.update('output_format', format)
     
-    # Initialize agent and execute task
-    agent = ElimuResearchAgent()
-    
-    # Create rich progress display
+    final_answer = ""
+    trace = []
     with Progress(
         SpinnerColumn(),
         TextColumn("[bold blue]{task.description}"),
@@ -387,11 +409,9 @@ def research(query, output, format):
     ) as progress:
         task = progress.add_task("[cyan]Researching...", total=100)
         
-        # We don't have granular progress info, so use time-based updates
         for i in range(10):
-            # Execute the research task on the first iteration
             if i == 0:
-                result = agent.execute_task(query)
+                final_answer, trace = _run_react_agent(query)
             progress.update(task, completed=i * 10)
             if i < 9:  # Don't sleep on the last iteration
                 time.sleep(0.2)  # Just for visual effect
@@ -402,24 +422,14 @@ def research(query, output, format):
     # Save result to file with sanitized filename
     filename = f"{output}/result_{_sanitize_filename(query)}.{_get_file_extension(format)}"
     with open(filename, 'w', encoding='utf-8') as f:
-        f.write(result)
+        f.write(format_react_markdown(query, final_answer, trace))
     
     console.print(Panel(f"[bold green]✓[/bold green] Research complete! Results saved to [bold cyan]{filename}[/bold cyan]", 
                         border_style="green"))
     
     # Show a preview of the results
-    try:
-        with open(filename, 'r', encoding='utf-8') as f:
-            content = f.read()
-            if format == 'markdown':
-                console.print(_build_preview_panel(content, metadata={"path": filename}))
-            else:
-                # Use the default syntax highlighting for non-markdown formats
-                syntax = Syntax(content[:1000] + "..." if len(content) > 1000 else content, 
-                                format, theme="monokai", line_numbers=True)
-                console.print(Panel(syntax, title="Results Preview", border_style="cyan"))
-    except Exception as e:
-        console.print(f"[yellow]Could not display preview: {str(e)}[/yellow]")
+    snippet = final_answer.strip()[:1500]
+    console.print(Panel(snippet if snippet else "[no answer produced]", title="Final Answer Preview", border_style="cyan"))
 
 @cli.command()
 @click.argument('file', type=click.Path(exists=True), required=True)
@@ -446,9 +456,6 @@ def batch_research(file, output, format):
     # Use our new task parser
     tasks = parse_tasks_from_file(file)
     
-    # Initialize agent
-    agent = ElimuResearchAgent()
-    
     console.print(Panel(f"[bold cyan]Processing {len(tasks)} lesson requests from {file}[/bold cyan]", border_style="blue"))
     
     # Create table for results summary
@@ -462,6 +469,8 @@ def batch_research(file, output, format):
     for i, task in enumerate(tasks):
         console.print(f"\n[bold blue]Task {i+1}/{len(tasks)}:[/bold blue] {task[:80]}...")
         
+        result_text = "No answer produced."
+        status = "✗ Failed"
         with Progress(
             SpinnerColumn(),
             TextColumn("[bold blue]{task.description}"),
@@ -470,28 +479,26 @@ def batch_research(file, output, format):
             console=console
         ) as progress:
             research_task = progress.add_task(f"[cyan]Researching task {i+1}/{len(tasks)}...", total=100)
-            
-            # Execute the task
             for j in range(10):
                 if j == 0:
                     try:
-                        result = agent.execute_task(task)
+                        final_answer, trace = _run_react_agent(task)
+                        result_text = format_react_markdown(task, final_answer, trace)
                         status = "✓ Complete"
                     except Exception as e:
                         console.print(f"[bold red]Error:[/bold red] {str(e)}")
-                        result = f"Error: {str(e)}"
+                        result_text = f"Error: {str(e)}"
                         status = "✗ Failed"
                 progress.update(research_task, completed=(j * 10))
                 if j < 9:
-                    time.sleep(0.1)  # Just for visual effect
-            
+                    time.sleep(0.1)
             progress.update(research_task, completed=100)
         
         # Save result to file
         task_filename = f"task_{i+1}_{task[:20].replace(' ', '_').replace('?', '').lower()}.{_get_file_extension(format)}"
         output_path = os.path.join(output, task_filename)
         with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(result)
+            f.write(result_text)
         
         # Add to results table
         results_table.add_row(
@@ -629,9 +636,6 @@ def shell(verbose):
     from prompt_toolkit.completion import WordCompleter
     from prompt_toolkit.styles import Style
     
-    # Import direct answer extraction functionality
-    from utils.formatters import extract_direct_answer
-    
     # Create history file path
     history_file = Path.home() / ".elimu_research_history"
     
@@ -658,9 +662,6 @@ def shell(verbose):
         style=style,
         message="elimu> "
     )
-    
-    # Initialize agent
-    agent = ElimuResearchAgent()
     
     # Display banner (we'll keep this since shell can be called directly)
     display_banner()
@@ -734,6 +735,8 @@ def shell(verbose):
 
             if query:
                 console.print(Panel(f"[bold cyan]Researching:[/bold cyan] {query}", border_style="blue"))
+                final_answer = ""
+                trace = []
                 
                 with Progress(
                     SpinnerColumn(),
@@ -743,46 +746,30 @@ def shell(verbose):
                     console=console
                 ) as progress:
                     task = progress.add_task("[cyan]Researching...", total=100)
-                    
-                    # We don't have granular progress info, so fake it
-                    result = None
                     for i in range(10):
-                        if i == 0:  # Actually do the work on the first iteration
+                        if i == 0:
                             try:
-                                result = agent.execute_task(query)
+                                final_answer, trace = _run_react_agent(query)
                             except Exception as e:
                                 console.print(f"[bold red]Error:[/bold red] {str(e)}")
+                                final_answer = ""
+                                trace = []
                                 break
-                        
                         progress.update(task, completed=(i * 10))
                         if i < 9:
-                            time.sleep(0.2)  # Just for visual feedback
-                    
-                    # Complete the progress
-                    if result:
-                        progress.update(task, completed=(100))
+                            time.sleep(0.2)
+                    if final_answer:
+                        progress.update(task, completed=100)
                 
-                # Only proceed if we got results
-                if result:
-                    # Save result to file in results directory
+                if final_answer:
                     os.makedirs("results", exist_ok=True)
                     filename = f"results/result_{_sanitize_filename(filename_query)}.md"
                     with open(filename, 'w', encoding='utf-8') as f:
-                        f.write(result)
+                        f.write(_format_react_markdown(query, final_answer, trace))
                     
-                    # NEW: Extract and show a direct answer if possible
-                    direct_answer = extract_direct_answer(query, agent.memory.get_results(), agent.memory)
-                    if direct_answer:
                         console.print("\n[bold green]Answer:[/bold green]", style="bold")
-                        console.print(Panel(direct_answer, border_style="green", expand=False, title="Direct Answer"))
-                    
+                    console.print(Panel(final_answer, border_style="green", expand=False, title="Direct Answer"))
                     console.print(f"[bold green]✓[/bold green] Research complete! Results saved to [cyan]{filename}[/cyan]")
-                    
-                    # Show a preview of the results
-                    try:
-                        console.print(_build_preview_panel(result, metadata={"path": filename}))
-                    except Exception as e:
-                        console.print(f"[yellow]Could not display preview: {str(e)}[/yellow]")
                 else:
                     console.print("[bold red]✗[/bold red] Research failed. Please try again.")
         
