@@ -41,17 +41,24 @@ BANNER = """
 [bold cyan]ELIMU RESEARCH ASSISTANT[/bold cyan]
 [bold green]Context-rich lesson intelligence for Kenyan classrooms[/bold green]
 """
-try:
-    from . import __version__
-except ImportError:
-    __version__ = "1.1.0" # Default version if import fails
+
+# Read version from VERSION file
+def _get_version():
+    """Get version from VERSION file"""
+    try:
+        version_file = Path(__file__).parent / "VERSION"
+        return version_file.read_text().strip()
+    except Exception:
+        return "1.1.1"  # Fallback version
+
+__version__ = _get_version()
 
 
 def display_banner():
     """Display the ASCII art banner."""
     console.print(BANNER)
-    console.print(f"\n[dim]Version {__version__} - Educational Content Creation Tool[/dim]\n")
-    console.print("[dim]Developed by [bold magenta]Ashioya Jotham[/bold magenta] – precision research for Kenyan classrooms.[/dim]\n")
+    console.print(f"\n[dim]Version {__version__}[/dim]")
+    console.print("[dim]Developed by [bold magenta]Ashioya Jotham Victor[/bold magenta] – precision research for Kenyan classrooms.[/dim]\n")
 
 def display_intro():
     """Display introduction info for Elimu Research Assistant."""
