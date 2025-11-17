@@ -32,6 +32,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coming soon: Offline content generation capabilities
 - Coming soon: Mobile app development
 
+## [1.1.1] - 2025-11-17
+
+### Fixed
+- **Critical:** Updated to use current Gemini API models (`gemini-2.0-flash`, `gemini-2.5-flash`) instead of deprecated 1.5 models
+- Fixed ASCII art banner to correctly spell "ELIMU" (was displaying "ELMUY" or "REIMU" in previous attempts)
+- Automatic migration of legacy model names in existing user configurations
+- Enhanced model fallback chain with all current stable Gemini models
+
+### Changed
+- Default model: `gemini-2.0-flash` (was `gemini-1.5-flash`)
+- Fallback model: `gemini-2.5-flash` (was `gemini-1.5-pro`)
+- Extended fallback candidates to include `gemini-2.0-flash-001`, `gemini-2.5-flash-lite`, and `gemini-2.5-pro`
+
+### Technical
+- Updated `config/config.py` with new default models and legacy migration logic
+- Updated `elimu_react/__init__.py` with current stable model candidates
+- All users will automatically have their configs migrated on next run
+
 ## [1.0.2] - 2025-01-22
 
 ### Fixed

@@ -5,17 +5,18 @@ import re
 import click
 from pathlib import Path
 import time
+import textwrap
 
 # Add the parent directory to sys.path to enable imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Now we can import from our modules using absolute imports
 from utils.logger import get_logger, set_log_level
-from agent.agent import ElimuResearchAgent
 from config.config import get_config, init_config
+from elimu_react import build_elimu_agent
+from utils.react_output import format_react_markdown
 from rich.console import Console
 from rich.panel import Panel
-from rich.markdown import Markdown
 from rich.syntax import Syntax
 from rich import box
 from rich.table import Table
@@ -29,29 +30,28 @@ console = Console()
 
 # ASCII Art Banner
 BANNER = """
-[bold blue]╭──────────────────────────────────────────────────────────────╮
-│       [bold cyan]███████╗██╗     ██╗███╗   ███╗██╗   ██╗[/bold cyan]                            │
-│       [bold cyan]██╔════╝██║     ██║████╗ ████║██║   ██║[/bold cyan]                            │
-│       [bold cyan]█████╗  ██║     ██║██╔████╔██║██║   ██║[/bold cyan]                            │
-│       [bold cyan]██╔══╝  ██║     ██║██║╚██╔╝██║██║   ██║[/bold cyan]                            │
-│       [bold cyan]███████╗███████╗██║██║ ╚═╝ ██║╚██████╔╝[/bold cyan]                            │
-│       [bold cyan]╚══════╝╚══════╝╚═╝╚═╝     ╚═╝ ╚═════╝ [/bold cyan]                            │
-[bold blue]│                                                            │
-│  [bold green]An Intelligent Research Assistant for Kenyan Educators[/bold green]         │
-│  [bold yellow]"Bridging the Context Deficit in Education"[/bold yellow]               │
-╰──────────────────────────────────────────────────────────────╯[/bold blue]
+[bold blue]
+███████╗██╗     ██╗███╗   ███╗██╗   ██╗
+██╔════╝██║     ██║████╗ ████║██║   ██║
+█████╗  ██║     ██║██╔████╔██║██║   ██║
+██╔══╝  ██║     ██║██║╚██╔╝██║██║   ██║
+███████╗███████╗██║██║ ╚═╝ ██║╚██████╔╝
+╚══════╝╚══════╝╚═╝╚═╝     ╚═╝ ╚═════╝ 
+[/bold blue]
+[bold cyan]ELIMU RESEARCH ASSISTANT[/bold cyan]
+[bold green]Context-rich lesson intelligence for Kenyan classrooms[/bold green]
 """
 try:
     from . import __version__
 except ImportError:
-    __version__ = "1.0.2" # Default version if import fails
+    __version__ = "1.1.0" # Default version if import fails
 
 
 def display_banner():
     """Display the ASCII art banner."""
     console.print(BANNER)
     console.print(f"\n[dim]Version {__version__} - Educational Content Creation Tool[/dim]\n")
-    console.print("[dim]Developed by [bold magenta]Ashioya Jotham[/bold magenta] - Empowering Kenyan Education![/dim]\n")
+    console.print("[dim]Developed by [bold magenta]Ashioya Jotham[/bold magenta] – precision research for Kenyan classrooms.[/dim]\n")
 
 def display_intro():
     """Display introduction info for Elimu Research Assistant."""
@@ -63,7 +63,7 @@ def display_intro():
     table.add_row("config - Configure API keys and educational settings")
     table.add_row("shell - Start interactive educational content creation mode")
     
-    console.print(Panel(table, border_style="blue", title="Elimu Research Assistant - Empowering Kenyan Education"))
+    console.print(Panel(table, border_style="blue", title="Elimu Research Assistant · Context-Rich Lessons"))
 
 def _sanitize_filename(query):
     """Sanitize a query string to create a valid filename."""
@@ -91,37 +91,107 @@ def _sanitize_filename(query):
         
     return sanitized
 
-def _extract_preview_sections(content, max_length=2000):
-    """Extract key sections from research results for preview."""
-    # Get the plan section
-    plan_match = re.search(r'(?i)## Plan\s+(.*?)(?:##|$)', content, re.DOTALL)
-    plan = plan_match.group(1).strip() if plan_match else ""
+def _extract_section_text(content, titles):
+    """Return the first matching markdown section for the provided titles."""
+    if not content:
+        return ""
+    normalized = content.replace("\r\n", "\n")
+    pattern = r"(?is)^##\s*(?:" + "|".join(re.escape(title) for title in titles) + r")\s*\n(.*?)(?=^##\s|\Z)"
+    match = re.search(pattern, normalized, re.MULTILINE)
+    return match.group(1).strip() if match else ""
+
+def _shorten_text(value, limit=420):
+    """Clean and shorten text for preview tables."""
+    if not value:
+        return ""
+    cleaned = re.sub(r"\s+", " ", value).strip()
+    if not cleaned:
+        return ""
+    try:
+        return textwrap.shorten(cleaned, width=limit, placeholder="…")
+    except ValueError:
+        return cleaned[:limit]
+
+def _extract_scope_items(content):
+    """Capture bullet points listed under a Research Scope section."""
+    if not content:
+        return []
+    normalized = content.replace("\r\n", "\n")
+    scope_match = re.search(r"(?is)research scope[:\s]*\n(.*?)(?:\n\s*\n|$)", normalized)
+    if not scope_match:
+        return []
+    scope_lines = []
+    for line in scope_match.group(1).splitlines():
+        stripped = line.strip(" -*•\t")
+        if stripped:
+            scope_lines.append(stripped)
+        if len(scope_lines) >= 4:
+            break
+    return scope_lines
+
+def _build_preview_panel(content, metadata=None):
+    """Render a richer preview panel combining plan, findings, and scope."""
+    if not content:
+        return Panel("Preview unavailable – no content returned.", border_style="red", title="Results Preview")
     
-    # Get the results/findings section (might be called Results, Findings, or Summary)
-    results_match = re.search(r'(?i)## (?:Results|Findings|Summary)\s+(.*?)(?:##|$)', content, re.DOTALL)
-    results = results_match.group(1).strip() if results_match else ""
+    plan_text = _extract_section_text(content, ["Plan", "Research Plan"])
+    findings_text = _extract_section_text(
+        content,
+        ["Research Findings", "Findings", "Content", "Results"]
+    )
+    summary_text = _extract_section_text(content, ["Summary", "Research Summary"])
     
-    # If we don't find a specific section, try to find any content after the plan
-    if not results:
-        # Look for any section after the plan
-        after_plan_match = re.search(r'(?i)## Plan.*?(?:##\s+(.*?)(?:##|$))', content, re.DOTALL)
-        if after_plan_match:
-            results = after_plan_match.group(1).strip()
+    if not plan_text:
+        plan_text = summary_text or content.split("\n\n", 1)[0]
+    if not findings_text:
+        findings_text = summary_text or content
     
-    # Create preview with both plan and results (if found)
-    preview = "## Plan\n\n" + plan[:max_length//3]  # 1/3 of space for plan
+    plan_snippet = _shorten_text(plan_text, 380) or "Plan details will appear here once the agent surfaces them."
+    findings_snippet = _shorten_text(findings_text, 520)
+    if not findings_snippet:
+        findings_snippet = _shorten_text(content, 520)
     
-    if results:
-        preview += "\n\n## Results\n\n" + results[:max_length*2//3]  # 2/3 of space for results
-    else:
-        # If no results section found, use more of the full content
-        preview += "\n\n## Content\n\n" + content[len(plan)+100:max_length*2//3] if len(content) > len(plan)+100 else ""
+    scope_items = _extract_scope_items(content)
+    scope_block = "\n".join(f"• {item}" for item in scope_items) if scope_items else "• Scope metrics will show after a successful multi-step run."
     
-    # Add ellipsis if we had to trim content
-    if len(preview) < len(content):
-        preview += "\n\n..."
-        
-    return preview
+    summary_block = _shorten_text(summary_text, 420) if summary_text else "Summary will populate when the agent returns a dedicated section."
+    storage_info = ""
+    if metadata and metadata.get("path"):
+        storage_info = f"\nSaved to: {metadata['path']}"
+    
+    table = Table.grid(expand=True)
+    table.add_column(ratio=1)
+    table.add_column(ratio=1)
+    table.add_row(f"[bold cyan]Plan[/bold cyan]\n{plan_snippet}", f"[bold cyan]Key Findings[/bold cyan]\n{findings_snippet}")
+    table.add_row(
+        f"[bold cyan]Research Scope[/bold cyan]\n{scope_block}",
+        f"[bold cyan]Summary & Storage[/bold cyan]\n{summary_block}{storage_info}"
+    )
+    
+    return Panel(table, title="Results Preview", border_style="cyan")
+
+def _format_react_markdown(task: str, final_answer: str, trace: list) -> str:
+    lines = [f"# {task}", "", "## Final Answer", ""]
+    lines.append(final_answer.strip() if final_answer.strip() else "_No answer generated._")
+    if trace:
+        lines.append("\n## ReAct Trace\n")
+        for step in trace:
+            lines.append(f"### Step {step.get('step')}")
+            lines.append(f"- Thought: {step.get('thought', '')}")
+            if step.get("action"):
+                lines.append(f"- Action: {step['action']}")
+                if step.get("action_input"):
+                    lines.append(f"- Action Input: `{step['action_input']}`")
+            if step.get("observation"):
+                lines.append(f"- Observation: {step['observation']}")
+            lines.append("")
+    return "\n".join(lines)
+
+def _run_react_agent(task: str):
+    agent = build_elimu_agent()
+    final_answer = agent.run(task)
+    trace = agent.get_execution_trace()
+    return final_answer, trace
 
 @click.group()
 @click.version_option(__version__, message="%(prog)s version %(version)s")
@@ -185,18 +255,15 @@ def _check_required_keys(agent_initialization=False):
     keyring_available = False
     
     try:
-        import keyring
+        import keyring  # noqa: F401
         keyring_available = True
     except ImportError:
         keyring_available = False
-        # Inform user about keyring if we're in interactive mode
         if agent_initialization:
             console.print(Panel(
-                "[bold yellow]Secure Credential Storage Recommended[/bold yellow]\n\n"
-                "For secure API key storage, install the keyring package:\n"
-                "[bold]pip install keyring[/bold]\n\n"
-                "This will store your API keys in your system's secure credential store\n"
-                "instead of in plain text files.",
+                "[bold yellow]Secure credential storage is optional but recommended.[/bold yellow]\n\n"
+                "Install [bold]keyring[/bold] to keep API keys in the Windows credential vault:\n"
+                "[bold]pip install keyring[/bold]",
                 title="Security Recommendation",
                 border_style="yellow"
             ))
@@ -212,52 +279,40 @@ def _check_required_keys(agent_initialization=False):
     
     if agent_initialization:
         console.print(Panel(
-            "[bold yellow]API Keys Required[/bold yellow]\n\n"
-            "To use the Web Research Agent, you need to provide API keys.\n"
-            "You'll be prompted to enter them now.",
+            "[bold yellow]API keys required[/bold yellow]\n\n"
+            "Elimu uses Google Gemini for comprehension and Serper.dev for search.\n"
+            "You'll be prompted for both keys now.",
             title="Configuration Needed",
             border_style="yellow"
         ))
     
-    # Check which keys can be stored securely - safely handle different config types
-    secure_storage_available = keyring_available
-    secure_status = {}
-    
-    # Only try to call securely_stored_keys if the config object might have this method
-    if hasattr(config, 'securely_stored_keys') and callable(getattr(config, 'securely_stored_keys', None)):
-        try:
-            secure_status = config.securely_stored_keys()
-        except Exception:
-            # Fall back to assuming no secure storage if method fails
-            secure_status = {}
-    else:
-        # This is likely an old version or different implementation
-        secure_storage_available = False
+    secure_storage_available = keyring_available and config.get('use_keyring', True)
     
     for key, display_name in required_keys.items():
         if key not in missing_keys:
             continue
             
-        prompt_text = f"{display_name} is required"
+        value = ""
+        while not value:
+            value = click.prompt(f"Enter your {display_name}", hide_input=True).strip()
+            if not value:
+                console.print("[red]API key cannot be empty.[/red]")
+        
+        stored_securely = False
         if secure_storage_available:
-            choice = click.confirm(
-                f"{prompt_text}. Store securely in system keyring?",
-                default=True
+            use_secure = click.confirm(
+                f"Store the {display_name} in your system keyring? (Recommended)",
+                default=True,
+                show_default=True
             )
-            
-            if not choice:
-                console.print("[yellow]Note: API key will be stored in .env file instead.[/yellow]")
+            if use_secure:
+                stored_securely = config.update(key, value, store_in_keyring=True)
+                if stored_securely:
+                    console.print(f"[green]✓[/green] {display_name} stored securely.")
+                else:
+                    console.print(f"[yellow]⚠[/yellow] Could not access the keyring. We'll fall back to the .env file.")
         
-        value = click.prompt(f"Enter your {display_name}", hide_input=True)
-        
-        if secure_storage_available and choice:
-            success = config.update(key, value, store_in_keyring=True)
-            if success:
-                console.print(f"[green]✓[/green] {display_name} saved securely in system keyring")
-            else:
-                console.print(f"[yellow]⚠[/yellow] Could not save to keyring, storing in .env file")
-                _save_to_env_file(key, value)
-        else:
+        if not stored_securely:
             config.update(key, value, store_in_keyring=False)
             _save_to_env_file(key, value)
     
@@ -342,10 +397,8 @@ def research(query, output, format):
     config = get_config()
     config.update('output_format', format)
     
-    # Initialize agent and execute task
-    agent = ElimuResearchAgent()
-    
-    # Create rich progress display
+    final_answer = ""
+    trace = []
     with Progress(
         SpinnerColumn(),
         TextColumn("[bold blue]{task.description}"),
@@ -356,11 +409,9 @@ def research(query, output, format):
     ) as progress:
         task = progress.add_task("[cyan]Researching...", total=100)
         
-        # We don't have granular progress info, so use time-based updates
         for i in range(10):
-            # Execute the research task on the first iteration
             if i == 0:
-                result = agent.execute_task(query)
+                final_answer, trace = _run_react_agent(query)
             progress.update(task, completed=i * 10)
             if i < 9:  # Don't sleep on the last iteration
                 time.sleep(0.2)  # Just for visual effect
@@ -371,27 +422,14 @@ def research(query, output, format):
     # Save result to file with sanitized filename
     filename = f"{output}/result_{_sanitize_filename(query)}.{_get_file_extension(format)}"
     with open(filename, 'w', encoding='utf-8') as f:
-        f.write(result)
+        f.write(format_react_markdown(query, final_answer, trace))
     
     console.print(Panel(f"[bold green]✓[/bold green] Research complete! Results saved to [bold cyan]{filename}[/bold cyan]", 
                         border_style="green"))
     
     # Show a preview of the results
-    try:
-        with open(filename, 'r', encoding='utf-8') as f:
-            content = f.read()
-            if format == 'markdown':
-                # Use our smart preview extraction
-                preview = _extract_preview_sections(content)
-                console.print(Panel(Markdown(preview), 
-                             title="Research Results Preview", border_style="cyan"))
-            else:
-                # Use the default syntax highlighting for non-markdown formats
-                syntax = Syntax(content[:1000] + "..." if len(content) > 1000 else content, 
-                                format, theme="monokai", line_numbers=True)
-                console.print(Panel(syntax, title="Results Preview", border_style="cyan"))
-    except Exception as e:
-        console.print(f"[yellow]Could not display preview: {str(e)}[/yellow]")
+    snippet = final_answer.strip()[:1500]
+    console.print(Panel(snippet if snippet else "[no answer produced]", title="Final Answer Preview", border_style="cyan"))
 
 @cli.command()
 @click.argument('file', type=click.Path(exists=True), required=True)
@@ -418,9 +456,6 @@ def batch_research(file, output, format):
     # Use our new task parser
     tasks = parse_tasks_from_file(file)
     
-    # Initialize agent
-    agent = ElimuResearchAgent()
-    
     console.print(Panel(f"[bold cyan]Processing {len(tasks)} lesson requests from {file}[/bold cyan]", border_style="blue"))
     
     # Create table for results summary
@@ -434,6 +469,8 @@ def batch_research(file, output, format):
     for i, task in enumerate(tasks):
         console.print(f"\n[bold blue]Task {i+1}/{len(tasks)}:[/bold blue] {task[:80]}...")
         
+        result_text = "No answer produced."
+        status = "✗ Failed"
         with Progress(
             SpinnerColumn(),
             TextColumn("[bold blue]{task.description}"),
@@ -442,28 +479,26 @@ def batch_research(file, output, format):
             console=console
         ) as progress:
             research_task = progress.add_task(f"[cyan]Researching task {i+1}/{len(tasks)}...", total=100)
-            
-            # Execute the task
             for j in range(10):
                 if j == 0:
                     try:
-                        result = agent.execute_task(task)
+                        final_answer, trace = _run_react_agent(task)
+                        result_text = format_react_markdown(task, final_answer, trace)
                         status = "✓ Complete"
                     except Exception as e:
                         console.print(f"[bold red]Error:[/bold red] {str(e)}")
-                        result = f"Error: {str(e)}"
+                        result_text = f"Error: {str(e)}"
                         status = "✗ Failed"
                 progress.update(research_task, completed=(j * 10))
                 if j < 9:
-                    time.sleep(0.1)  # Just for visual effect
-            
+                    time.sleep(0.1)
             progress.update(research_task, completed=100)
         
         # Save result to file
         task_filename = f"task_{i+1}_{task[:20].replace(' ', '_').replace('?', '').lower()}.{_get_file_extension(format)}"
         output_path = os.path.join(output, task_filename)
         with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(result)
+            f.write(result_text)
         
         # Add to results table
         results_table.add_row(
@@ -481,10 +516,12 @@ def batch_research(file, output, format):
 @click.option('--serper-key', '-s', help="Set Serper API key")
 @click.option('--timeout', '-t', type=int, help="Set request timeout in seconds")
 @click.option('--format', '-f', type=click.Choice(['markdown', 'json', 'html']), help="Set default output format")
+@click.option('--model', help="Set the preferred Gemini model (e.g., gemini-2.0-flash-exp)")
+@click.option('--fallback-model', help="Set the fallback Gemini model used when the primary model fails")
 @click.option('--use-keyring/--no-keyring', default=None, help="Whether to use system keyring for secure storage")
 @click.option('--show', is_flag=True, help="Show current configuration")
-def config(api_key, serper_key, timeout, format, use_keyring, show):
-    """Configure the Web Research Agent."""
+def config(api_key, serper_key, timeout, format, model, fallback_model, use_keyring, show):
+    """Configure the Elimu Research Assistant."""
     config = get_config()
     secure_storage = False
     
@@ -550,6 +587,14 @@ def config(api_key, serper_key, timeout, format, use_keyring, show):
         config.update('output_format', format)
         console.print(f"✅ Updated default output format to {format}")
     
+    if model:
+        config.update('model_name', model)
+        console.print(f"✅ Preferred Gemini model set to {model}")
+    
+    if fallback_model:
+        config.update('model_fallback', fallback_model)
+        console.print(f"✅ Fallback Gemini model set to {fallback_model}")
+    
     # If use_keyring is explicitly set to True but keyring isn't available
     if use_keyring is True and not secure_storage:
         console.print("[yellow]Warning: System keyring support not available. Install the 'keyring' package.[/yellow]")
@@ -591,11 +636,8 @@ def shell(verbose):
     from prompt_toolkit.completion import WordCompleter
     from prompt_toolkit.styles import Style
     
-    # Import direct answer extraction functionality
-    from utils.formatters import extract_direct_answer
-    
     # Create history file path
-    history_file = Path.home() / ".web_research_history"
+    history_file = Path.home() / ".elimu_research_history"
     
     # Create command completer with context-aware suggestions
     commands = WordCompleter([
@@ -621,9 +663,6 @@ def shell(verbose):
         message="elimu> "
     )
     
-    # Initialize agent
-    agent = ElimuResearchAgent()
-    
     # Display banner (we'll keep this since shell can be called directly)
     display_banner()
     
@@ -638,7 +677,7 @@ def shell(verbose):
                 continue
             
             if user_input.lower() in ('exit', 'quit'):
-                console.print("[yellow]Exiting Web Research Agent...[/yellow]")
+                console.print("[yellow]Exiting Elimu Research Assistant...[/yellow]")
                 break
             
             if user_input.lower() == 'clear':
@@ -696,6 +735,8 @@ def shell(verbose):
 
             if query:
                 console.print(Panel(f"[bold cyan]Researching:[/bold cyan] {query}", border_style="blue"))
+                final_answer = ""
+                trace = []
                 
                 with Progress(
                     SpinnerColumn(),
@@ -705,47 +746,30 @@ def shell(verbose):
                     console=console
                 ) as progress:
                     task = progress.add_task("[cyan]Researching...", total=100)
-                    
-                    # We don't have granular progress info, so fake it
-                    result = None
                     for i in range(10):
-                        if i == 0:  # Actually do the work on the first iteration
+                        if i == 0:
                             try:
-                                result = agent.execute_task(query)
+                                final_answer, trace = _run_react_agent(query)
                             except Exception as e:
                                 console.print(f"[bold red]Error:[/bold red] {str(e)}")
+                                final_answer = ""
+                                trace = []
                                 break
-                        
                         progress.update(task, completed=(i * 10))
                         if i < 9:
-                            time.sleep(0.2)  # Just for visual feedback
-                    
-                    # Complete the progress
-                    if result:
-                        progress.update(task, completed=(100))
+                            time.sleep(0.2)
+                    if final_answer:
+                        progress.update(task, completed=100)
                 
-                # Only proceed if we got results
-                if result:
-                    # Save result to file in results directory
+                if final_answer:
                     os.makedirs("results", exist_ok=True)
                     filename = f"results/result_{_sanitize_filename(filename_query)}.md"
                     with open(filename, 'w', encoding='utf-8') as f:
-                        f.write(result)
+                        f.write(_format_react_markdown(query, final_answer, trace))
                     
-                    # NEW: Extract and show a direct answer if possible
-                    direct_answer = extract_direct_answer(query, agent.memory.get_results(), agent.memory)
-                    if direct_answer:
                         console.print("\n[bold green]Answer:[/bold green]", style="bold")
-                        console.print(Panel(direct_answer, border_style="green", expand=False))
-                    
+                    console.print(Panel(final_answer, border_style="green", expand=False, title="Direct Answer"))
                     console.print(f"[bold green]✓[/bold green] Research complete! Results saved to [cyan]{filename}[/cyan]")
-                    
-                    # Show a preview of the results
-                    try:
-                        preview = _extract_preview_sections(result)
-                        console.print(Panel(Markdown(preview), title="Results Preview", border_style="cyan"))
-                    except Exception as e:
-                        console.print(f"[yellow]Could not display preview: {str(e)}[/yellow]")
                 else:
                     console.print("[bold red]✗[/bold red] Research failed. Please try again.")
         
@@ -753,7 +777,7 @@ def shell(verbose):
             console.print("\n[yellow]Operation cancelled. Press Ctrl+D or type 'exit' to quit.[/yellow]")
             continue
         except EOFError:
-            console.print("\n[yellow]Exiting Web Research Agent...[/yellow]")
+            console.print("\n[yellow]Exiting Elimu Research Assistant...[/yellow]")
             break
         except Exception as e:
             console.print(f"[bold red]Error:[/bold red] {str(e)}")
