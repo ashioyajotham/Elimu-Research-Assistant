@@ -13,7 +13,39 @@ class Comprehension:
         """Initialize the comprehension module."""
         config = get_config()
         genai.configure(api_key=config.get("gemini_api_key"))
-        self.model = genai.GenerativeModel('gemini-1.5-flash')  # Updated model name
+        self.primary_model_name = config.get("model_name") or "gemini-2.0-flash-exp"
+        self.fallback_model_name = config.get("model_fallback") or "gemini-1.5-flash-latest"
+        self._model = None
+        self._active_model_name = None
+
+    def _candidate_models(self):
+        """Return the preferred and fallback Gemini models without duplicates."""
+        seen = []
+        for name in [self.primary_model_name, self.fallback_model_name, "gemini-1.5-flash-latest"]:
+            if name and name not in seen:
+                seen.append(name)
+        return seen
+
+    def _generate_content(self, prompt):
+        """
+        Call Gemini with graceful fallback between preferred and backup models.
+        """
+        last_error = None
+        for model_name in self._candidate_models():
+            try:
+                if self._active_model_name != model_name or self._model is None:
+                    self._model = genai.GenerativeModel(model_name)
+                    self._active_model_name = model_name
+                response = self._model.generate_content(prompt)
+                if model_name != self.primary_model_name:
+                    logger.info(f"Switched to fallback Gemini model: {model_name}")
+                return response
+            except Exception as exc:
+                last_error = exc
+                logger.warning(f"Gemini model '{model_name}' failed: {exc}")
+                continue
+        if last_error:
+            raise last_error
     
     def analyze_task(self, task_description):
         """
@@ -143,7 +175,7 @@ class Comprehension:
         
         try:
             # Updated API call format
-            response = self.model.generate_content(prompt)
+            response = self._generate_content(prompt)
             analysis = self._extract_json(response.text)
             
             # Ensure educational defaults are set
@@ -197,7 +229,7 @@ class Comprehension:
         
         try:
             # Updated API call format
-            response = self.model.generate_content(prompt)
+            response = self._generate_content(prompt)
             return response.text.strip()
         except Exception as e:
             logger.error(f"Error summarizing content: {str(e)}")
@@ -227,7 +259,7 @@ class Comprehension:
         """
         
         try:
-            response = self.model.generate_content(prompt)
+            response = self._generate_content(prompt)
             return response.text.strip()
         except Exception as e:
             logger.error(f"Error extracting information: {str(e)}")
@@ -261,7 +293,7 @@ class Comprehension:
             prompt = self._create_standard_extraction_prompt(entity_types, text_sample)
         
         try:
-            response = self.model.generate_content(prompt)
+            response = self._generate_content(prompt)
             entities = self._extract_json(response.text)
             
             # Post-process the extracted entities

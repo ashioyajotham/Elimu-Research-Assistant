@@ -23,7 +23,7 @@ setup(
         "requests>=2.25.0",
         "beautifulsoup4>=4.9.0",
         "html2text>=2020.1.16",
-        "google-generativeai>=0.3.0",
+        "google-generativeai>=0.8.3",
         "python-dotenv>=0.19.0",
         "prompt_toolkit>=3.0.0",
         "rich>=10.0.0",

@@ -137,7 +137,7 @@ def process_tasks(task_file_path, output_dir="results"):
         display_completion_message(task, output_file)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Web Research Agent")
+    parser = argparse.ArgumentParser(description="Elimu Research Assistant")
     parser.add_argument("task_file", help="Path to text file containing tasks")
     parser.add_argument("--output", default="results", help="Output directory for results")
     args = parser.parse_args()

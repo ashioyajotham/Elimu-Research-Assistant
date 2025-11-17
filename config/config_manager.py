@@ -18,7 +18,7 @@ except ImportError:
     KEYRING_AVAILABLE = False
 
 # Service name for keyring credentials
-KEYRING_SERVICE = "web_research_agent"
+KEYRING_SERVICE = "elimu_research_assistant"
 
 class ConfigManager:
     """
