@@ -60,7 +60,7 @@ webapp = ["streamlit>=1.32.0"]
 "Educational Impact" = "https://github.com/ashioyajotham/elimu_research_assistant/wiki/Educational-Impact"
 
 [project.scripts]
-elimu = "cli:main"
+elimu = "elimu_entry:main"
 
 [tool.setuptools.dynamic]
 version = {file = "VERSION"}
