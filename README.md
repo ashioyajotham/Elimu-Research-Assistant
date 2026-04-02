@@ -1,206 +1,151 @@
 # Elimu Research Assistant
 
-**A Tool for Localized Educational Content Creation in Kenya**
+An AI research agent for Kenyan educators that generates locally-grounded educational content using a ReAct (Reasoning + Acting) loop over live web search.
 
-*Elimu* (Swahili for "education") Research Assistant is an intelligent research tool using ReAct framework designed specifically for Kenyan educators to bridge the context deficit in education by generating locally relevant, credibly sourced educational content.
+## What It Does
 
-## The Challenge
+Given a teaching request such as `"Create a Form 3 Business Studies lesson on M-Pesa's impact on small enterprises"`, the agent:
 
-Imagine a Kenyan geography teacher trying to explain economic principles using examples from a textbook written in London. The lesson falls flat. Now imagine that same teacher, in minutes, generating a custom handout on the economic impact of the new Lamu Port, complete with local statistics and sources. This is the gap Elimu Research Assistant fills.
-
-### Core Problems We Address
-
-- **Context Deficit**: Official curricula often rely on foreign examples, making subjects feel abstract and irrelevant to Kenyan students
-- **Educator Overload**: Teachers have limited time to research local data, case studies, and examples to enrich their lessons
-- **Digital Research Gap**: Finding credible, locally relevant content is time-consuming and can be costly due to data expenses
-- **Pedagogical Stagnation**: Lack of accessible, relevant materials limits teaching innovation beyond traditional lecture formats
-
-## The Solution
-
-Elimu Research Assistant is not another search engine. It's an intelligent assistant that understands a teacher's educational needs, conducts targeted web research, and delivers structured, ready-to-use content that is both locally relevant and credibly sourced.
-
-### Key Capabilities
-
-#### 🎯 Context-Aware Content Generation
-- **Example**: "Generate a 2-page brief for Form 3 Business Studies on M-Pesa's impact on small enterprises in Kenya, including three Rift Valley examples"
-- **Output**: Coherent, structured document ready for classroom use
-
-#### 📚 Adaptable Content Formatting
-- **Lesson Plans**: Bulleted lists with learning objectives and activities
-- **Student Handouts**: Comparison tables and visual summaries
-- **Teacher References**: Detailed narrative summaries with background context
-- **Assessment Materials**: Quiz questions and discussion prompts
-
-#### 🔍 Credible & Localized Sourcing
-- Prioritizes reputable Kenyan sources (universities, KICD, government publications)
-- Combines local and global perspectives
-- Provides proper citations for digital literacy
-- Ensures information is verifiable and current
-
-### Sample Use Cases
-
-1. **Science Teacher**: "Create a lesson plan on renewable energy focusing on Kenya's geothermal projects in Olkaria"
-2. **History Teacher**: "Develop a comparison table of pre-colonial trade routes through modern-day Kenya"
-3. **Mathematics Teacher**: "Generate word problems using Kenyan currency, distances between major cities, and local business scenarios"
-4. **Literature Teacher**: "Compile a study guide on themes in Kenyan literature comparing Ngugi wa Thiong'o and Grace Ogot"
-
-## Technical Foundation
-
-Built on the proven ReAct (Reasoning + Acting) AI framework, Elimu Research Assistant features:
-
-- **Dynamic Task Analysis**: Understands educational context and content requirements
-- **Multi-Strategy Synthesis**: Four distinct approaches for different content types
-- **Entity-Aware Processing**: Tracks and connects relevant educational concepts
-- **Robust Error Handling**: Multiple fallback strategies for reliable content generation
-
-## Installation
-
-### Prerequisites
-- Python 3.9 or higher
-- Google Gemini API key
-- Serper.dev API key (for web search)
-
-### Quick Start
-
-```bash
-# Clone the repository
-git clone https://github.com/ashioyajotham/elimu_research_assistant.git
-cd elimu_research_assistant
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure API keys
-elimu config --api-key YOUR_GEMINI_API_KEY
-elimu config --serper-key YOUR_SERPER_API_KEY
-
-# Run your first research task
-elimu research "Create a lesson outline on Kenya's coastal tourism industry for Form 2 Geography"
-```
-
-### Command Line Usage
-
-```bash
-# Single research query
-elimu research "Generate examples of quadratic equations using Kenyan sports statistics"
-
-# Batch processing from file
-elimu batch-research lesson_requests.txt --output classroom_materials/
-
-# Configure settings
-elimu config --show  # View current settings
-elimu config --format markdown  # Set default output format
-```
-
-## Educational Impact
-
-### For Teachers
-- **Time Savings**: Reduce research time from hours to minutes
-- **Quality Content**: Access to verified, locally relevant materials
-- **Pedagogical Innovation**: Enable more engaging, context-rich lessons
-- **Professional Development**: Exposure to diverse, credible educational sources
-
-### For Students
-- **Improved Engagement**: Learning through familiar, relevant examples
-- **Better Comprehension**: Complex concepts explained through local context
-- **Cultural Pride**: Seeing their country and culture represented in education
-- **Global Perspective**: Local examples connected to international concepts
-
-### For the Education System
-- **Curriculum Enhancement**: Supplement official materials with local content
-- **Digital Literacy**: Promote research skills and source verification
-- **Educational Equity**: Provide quality content across resource-diverse schools
-- **Innovation Culture**: Encourage teachers to experiment with AI-assisted pedagogy
-
-## Project Status
-
-The core AI engine is technologically mature and is being adapted for education through:
-
-- **Pilot Partnership**: Collaboration with Kenyan secondary school teachers
-- **User-Centric Design**: Direct feedback from classroom practitioners
-- **Iterative Development**: Continuous improvement based on real-world usage
-- **Field Testing**: Validation in actual classroom environments
+1. Reasons about what to search and in what order
+2. Executes web searches via Serper.dev, biased toward `.ke` and East African domains
+3. Scrapes and cleans source pages for relevant content
+4. Iterates (up to 12 reasoning steps by default) until it can synthesize a cited, structured educational artefact
+5. Returns classroom-ready output: lesson plan, case study, handout, or assessment, depending on the request
 
 ## Architecture
 
-```mermaid
-graph TD
-    A[Teacher Request] --> B[Educational Task Analysis]
-    B --> C[Kenya-Focused Search Strategy]
-    C --> D[Multi-Source Research]
-    D --> E[Context-Aware Synthesis]
-    E --> F[Educational Content Format]
-    F --> G[Ready-to-Use Materials]
-    
-    style B fill:#e1f5fe
-    style E fill:#e8f5e8
-    style F fill:#fff3e0
+```
+CLI / Streamlit
+      │
+      ▼
+build_elimu_agent()          ← elimu_react/__init__.py
+      │
+      ├── LLMInterface        ← Google Gemini 2.x (primary: gemini-2.0-flash)
+      │     └── model fallback chain (2.0-flash → 2.5-flash → 2.5-pro)
+      │
+      ├── ToolManager
+      │     ├── SearchTool    ← Serper.dev (Google Search API)
+      │     │     └── Kenya bias: appends "Kenya", prioritises .ke / .ac.ke
+      │     └── ScrapeTool    ← requests + BeautifulSoup, 6 000 char limit
+      │
+      └── ReActAgent          ← elimu_react/agent.py
+            └── run(task) → ReAct loop (max 15 iters)
+                  Thought → Action → Observation → … → Final Answer
 ```
 
-### Workflow for Educators
+### ReAct Loop (elimu_react/agent.py)
 
-1. **Request Analysis**: System understands educational level, subject, and content type needed
-2. **Intelligent Search**: Prioritizes Kenyan sources while maintaining global perspective
-3. **Content Synthesis**: Combines multiple sources into coherent educational materials
-4. **Format Optimization**: Delivers content in teacher-specified format (lesson plan, handout, etc.)
-5. **Quality Assurance**: Provides citations and source verification for credibility
+Each iteration:
+1. Build a prompt: system instructions + tool descriptions + task + prior steps
+2. Call LLM → parse `Thought`, `Action`, `Action Input`, or `Final Answer`
+3. If action: dispatch to `SearchTool` or `ScrapeTool`, collect observation
+4. Append step to trace; repeat
+5. On `Final Answer` or exhausted iterations → return synthesis
 
-## Contributing
+The system prompt instructs the model to produce classroom-ready artefacts with Kenyan examples and cited sources, and to never fabricate URLs or statistics.
 
-We welcome contributions from educators, developers, and anyone passionate about improving education in Kenya.
+### Configuration (config/config.py)
 
-### For Educators
-- Provide feedback on generated content
-- Suggest common use cases and scenarios
-- Share successful classroom implementations
-- Report content gaps or inaccuracies
+Credentials and settings are resolved in priority order: `.env` → environment variables → system keyring. Non-sensitive settings persist in `~/.elimu_research_assistant/config.json`.
 
-### For Developers
-- Enhance localization algorithms
-- Improve educational content formatting
-- Add new source integration capabilities
-- Optimize for low-bandwidth environments
+| Key | Default | Description |
+|-----|---------|-------------|
+| `gemini_api_key` | — | Required. Google Gemini API key |
+| `serper_api_key` | — | Required. Serper.dev API key |
+| `model_name` | `gemini-2.0-flash` | Primary LLM model |
+| `model_fallback` | `gemini-2.5-flash` | Fallback on 404/quota |
+| `model_temperature` | `0.15` | Low temperature for factual output |
+| `max_iterations` | `12` | ReAct loop cap |
+| `max_tool_output_length` | `6000` | Observation truncation (chars) |
+| `educational_focus` | `True` | Adds "classroom" to education queries |
+| `prioritize_kenyan_sources` | `True` | Biases search toward .ke domains |
 
-## Roadmap
+## Installation
 
-### Phase 1: Foundation (Current)
-- ✅ Core AI research and synthesis engine
-- ✅ Basic educational content formatting
-- 🔄 Pilot testing with Kenyan educators
+```bash
+git clone https://github.com/ashioyajotham/elimu_research_assistant.git
+cd elimu_research_assistant
+pip install -e .
+```
 
-### Phase 2: Enhancement (Q2 2025)
-- 📋 Advanced curriculum alignment features
-- 📋 Multilingual support (English, Swahili)
-- 📋 Offline content generation capabilities
-- 📋 Mobile app development
+### API Keys
 
-### Phase 3: Scale (Q3-Q4 2025)
-- 📋 Integration with existing LMS platforms
-- 📋 Collaborative content sharing among teachers
-- 📋 Assessment and quiz generation
-- 📋 Student-facing research tools
+You need two keys:
+
+- **Google Gemini**: [aistudio.google.com](https://aistudio.google.com) — free tier available
+- **Serper.dev**: [serper.dev](https://serper.dev) — 2 500 free searches/month
+
+```bash
+elimu config --api-key YOUR_GEMINI_KEY
+elimu config --serper-key YOUR_SERPER_KEY
+```
+
+Keys are stored in the Windows system keyring by default, or in `.env` if keyring is unavailable.
+
+## CLI Usage
+
+```bash
+# Single research task
+elimu research "Create a Form 3 lesson on M-Pesa's impact on small enterprises"
+
+# Batch from file (one task per line or blank-line-separated blocks)
+elimu batch-research tasks.txt --output results/
+
+# Interactive shell with history and autocomplete
+elimu shell
+
+# Configuration
+elimu config --show
+elimu config --model gemini-2.5-pro
+elimu config --format markdown   # markdown | json | html
+```
+
+Output files are saved to `results/result_<sanitized-query>.md` by default.
+
+## Streamlit Webapp
+
+```bash
+pip install streamlit
+streamlit run streamlit_app.py
+```
+
+The webapp exposes the same research agent with a browser UI: sidebar configuration, research input, expandable ReAct trace, and inline result rendering.
+
+## Project Structure
+
+```
+elimu_research_assistant/
+├── elimu_react/          # ReAct agent engine
+│   ├── agent.py          # ReActAgent: reasoning loop
+│   ├── llm.py            # LLMInterface: Gemini wrapper with fallback
+│   └── tools/
+│       ├── search.py     # SearchTool (Serper.dev)
+│       └── scrape.py     # ScrapeTool (requests + BS4)
+├── config/
+│   ├── config.py         # ElimuConfigManager: env / keyring / file
+│   └── config_manager.py # BaseConfigManager
+├── utils/
+│   ├── console_ui.py     # Rich theme, panels, progress
+│   ├── react_output.py   # Markdown serialiser for ReAct traces
+│   └── task_parser.py    # Multi-line task file parser
+├── cli.py                # Click CLI entry point
+├── streamlit_app.py      # Streamlit webapp
+└── pyproject.toml
+```
+
+## Development
+
+```bash
+pip install -r requirements.txt
+python -m pytest
+```
+
+Logs are written to `logs/agent.log`. Set `--verbose` on any CLI command for INFO-level output.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE).
 
-## Citation
+## Author
 
-If you use Elimu Research Assistant in your research or educational work, please cite:
-
-```
-Ashioya, J. (2025). Elimu Research Assistant: An AI-Powered Tool for Localized Educational Content Creation in Kenya. GitHub. https://github.com/ashioyajotham/elimu_research_assistant
-```
-
-## Contact
-
-**Ashioya Jotham**  
-Individual Researcher & Developer  
-Email: victorashioya960@gmail.com  
-Project: Elimu Research Assistant  
-
----
-
-*"Education is the most powerful weapon which you can use to change the world." - Nelson Mandela*
-
-*Let's make that education relevant, accessible, and proudly Kenyan.*
+Ashioya Jotham · [victorashioya960@gmail.com](mailto:victorashioya960@gmail.com)

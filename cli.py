@@ -18,9 +18,16 @@ from utils.react_output import format_react_markdown
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
+from rich.rule import Rule
 from rich import box
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+from utils.console_ui import (
+    _P, _A, _I, _E, _S, _W, _D,
+    BORDER_PRIMARY, BORDER_ACCENT, BORDER_INFO, BORDER_SUCCESS, BORDER_ERROR, BORDER_WARNING,
+    BOX_PANEL, BOX_TABLE,
+    success, warn, error as ui_error,
+)
 
 # Import the new parser
 from utils.task_parser import parse_tasks_from_file
@@ -30,16 +37,14 @@ console = Console()
 
 # ASCII Art Banner
 BANNER = """
-[bold blue]
+[bold #2E7D32]
 ███████╗██╗     ██╗███╗   ███╗██╗   ██╗
 ██╔════╝██║     ██║████╗ ████║██║   ██║
 █████╗  ██║     ██║██╔████╔██║██║   ██║
 ██╔══╝  ██║     ██║██║╚██╔╝██║██║   ██║
 ███████╗███████╗██║██║ ╚═╝ ██║╚██████╔╝
-╚══════╝╚══════╝╚═╝╚═╝     ╚═╝ ╚═════╝ 
-[/bold blue]
-[bold cyan]ELIMU RESEARCH ASSISTANT[/bold cyan]
-[bold green]Context-rich lesson intelligence for Kenyan classrooms[/bold green]
+╚══════╝╚══════╝╚═╝╚═╝     ╚═╝ ╚═════╝[/bold #2E7D32]
+[bold #F9A825]  RESEARCH ASSISTANT[/bold #F9A825]  [grey62]─  ReAct · Gemini 2.x · Serper.dev[/grey62]
 """
 
 # Read version from VERSION file
@@ -57,20 +62,24 @@ __version__ = _get_version()
 def display_banner():
     """Display the ASCII art banner."""
     console.print(BANNER)
-    console.print(f"\n[dim]Version {__version__}[/dim]")
-    console.print("[dim]Developed by [bold magenta]Ashioya Jotham Victor[/bold magenta] – precision research for Kenyan classrooms.[/dim]\n")
+    console.print(f"[{_D}]v{__version__}  ·  Ashioya Jotham Victor[/]\n")
 
 def display_intro():
-    """Display introduction info for Elimu Research Assistant."""
-    table = Table(box=box.ROUNDED, show_header=False, border_style="blue")
-    table.add_column(justify="center", style="bold cyan")
-    table.add_row("[bold green]Available commands:[/bold green]")
-    table.add_row("research [query] - Create localized educational content")
-    table.add_row("batch-research [file] - Process multiple lesson requests")
-    table.add_row("config - Configure API keys and educational settings")
-    table.add_row("shell - Start interactive educational content creation mode")
-    
-    console.print(Panel(table, border_style="blue", title="Elimu Research Assistant · Context-Rich Lessons"))
+    """Display available commands."""
+    table = Table(box=BOX_TABLE, show_header=False, border_style=BORDER_PRIMARY)
+    table.add_column(justify="left", style=f"bold {_A}")
+    table.add_column(style=_D)
+    table.add_row("research <query>",    "Run a single research task")
+    table.add_row("batch-research <file>", "Process tasks from a file")
+    table.add_row("shell",               "Interactive REPL with history")
+    table.add_row("config",              "Configure API keys and model settings")
+    console.print(Panel(
+        table,
+        border_style=BORDER_PRIMARY,
+        box=BOX_PANEL,
+        title=f"[bold {_P}]Elimu Research Assistant[/]",
+        subtitle=f"[{_D}]elimu --help for full usage[/]",
+    ))
 
 def _sanitize_filename(query):
     """Sanitize a query string to create a valid filename."""
@@ -139,7 +148,7 @@ def _extract_scope_items(content):
 def _build_preview_panel(content, metadata=None):
     """Render a richer preview panel combining plan, findings, and scope."""
     if not content:
-        return Panel("Preview unavailable – no content returned.", border_style="red", title="Results Preview")
+        return Panel("Preview unavailable – no content returned.", border_style=BORDER_ERROR, box=BOX_PANEL, title=f"[bold {_A}]Results Preview[/]")
     
     plan_text = _extract_section_text(content, ["Plan", "Research Plan"])
     findings_text = _extract_section_text(
@@ -169,13 +178,16 @@ def _build_preview_panel(content, metadata=None):
     table = Table.grid(expand=True)
     table.add_column(ratio=1)
     table.add_column(ratio=1)
-    table.add_row(f"[bold cyan]Plan[/bold cyan]\n{plan_snippet}", f"[bold cyan]Key Findings[/bold cyan]\n{findings_snippet}")
     table.add_row(
-        f"[bold cyan]Research Scope[/bold cyan]\n{scope_block}",
-        f"[bold cyan]Summary & Storage[/bold cyan]\n{summary_block}{storage_info}"
+        f"[bold {_P}]Plan[/]\n{plan_snippet}",
+        f"[bold {_P}]Key Findings[/]\n{findings_snippet}",
     )
-    
-    return Panel(table, title="Results Preview", border_style="cyan")
+    table.add_row(
+        f"[bold {_P}]Research Scope[/]\n{scope_block}",
+        f"[bold {_P}]Summary & Storage[/]\n{summary_block}{storage_info}",
+    )
+
+    return Panel(table, title=f"[bold {_A}]Results Preview[/]", border_style=BORDER_PRIMARY, box=BOX_PANEL)
 
 def _format_react_markdown(task: str, final_answer: str, trace: list) -> str:
     lines = [f"# {task}", "", "## Final Answer", ""]
@@ -255,7 +267,7 @@ def _check_required_keys(agent_initialization=False):
     ctx = get_current_context()
     if ctx.obj and ctx.obj.get('no_config', False):
         if agent_initialization:
-            console.print("[yellow]Warning: Running in no-config mode. API calls will fail.[/yellow]")
+            console.print(f"[{_W}]Warning: no-config mode — API calls will fail.[/]")
         return True
     
     config = get_config()
@@ -268,11 +280,12 @@ def _check_required_keys(agent_initialization=False):
         keyring_available = False
         if agent_initialization:
             console.print(Panel(
-                "[bold yellow]Secure credential storage is optional but recommended.[/bold yellow]\n\n"
+                f"[{_W}]Secure credential storage is optional but recommended.[/]\n\n"
                 "Install [bold]keyring[/bold] to keep API keys in the Windows credential vault:\n"
                 "[bold]pip install keyring[/bold]",
-                title="Security Recommendation",
-                border_style="yellow"
+                title=f"[bold {_A}]Security Recommendation[/]",
+                border_style=BORDER_WARNING,
+                box=BOX_PANEL,
             ))
     
     required_keys = {
@@ -286,11 +299,12 @@ def _check_required_keys(agent_initialization=False):
     
     if agent_initialization:
         console.print(Panel(
-            "[bold yellow]API keys required[/bold yellow]\n\n"
-            "Elimu uses Google Gemini for comprehension and Serper.dev for search.\n"
-            "You'll be prompted for both keys now.",
-            title="Configuration Needed",
-            border_style="yellow"
+            f"[bold {_A}]API keys required[/]\n\n"
+            "Elimu uses Google Gemini for reasoning and Serper.dev for search.\n"
+            "You will be prompted for both keys now.",
+            title=f"[bold {_A}]Configuration Needed[/]",
+            border_style=BORDER_WARNING,
+            box=BOX_PANEL,
         ))
     
     secure_storage_available = keyring_available and config.get('use_keyring', True)
@@ -303,21 +317,21 @@ def _check_required_keys(agent_initialization=False):
         while not value:
             value = click.prompt(f"Enter your {display_name}", hide_input=True).strip()
             if not value:
-                console.print("[red]API key cannot be empty.[/red]")
-        
+                console.print(f"[{_E}]API key cannot be empty.[/]")
+
         stored_securely = False
         if secure_storage_available:
             use_secure = click.confirm(
-                f"Store the {display_name} in your system keyring? (Recommended)",
+                f"Store the {display_name} in the system keyring? (recommended)",
                 default=True,
-                show_default=True
+                show_default=True,
             )
             if use_secure:
                 stored_securely = config.update(key, value, store_in_keyring=True)
                 if stored_securely:
-                    console.print(f"[green]✓[/green] {display_name} stored securely.")
+                    console.print(f"[bold {_S}][+][/] {display_name} stored securely.")
                 else:
-                    console.print(f"[yellow]⚠[/yellow] Could not access the keyring. We'll fall back to the .env file.")
+                    console.print(f"[{_W}][!]  Keyring unavailable — falling back to .env file.[/]")
         
         if not stored_securely:
             config.update(key, value, store_in_keyring=False)
@@ -376,7 +390,7 @@ def _save_to_env_file(key, value):
     with open(env_path, 'w') as file:
         file.writelines(lines)
     
-    console.print(f"[green]✓[/green] Saved {env_var} to .env file")
+    console.print(f"[green][+][/green] Saved {env_var} to .env file")
 
 @cli.command()
 @click.argument('query', required=True)
@@ -398,23 +412,28 @@ def research(query, output, format):
         
     os.makedirs(output, exist_ok=True)
     
-    console.print(Panel(f"[bold cyan]Creating Educational Content:[/bold cyan] {query}", border_style="blue"))
-    
+    console.print(Panel(
+        f"[bold {_P}]Query:[/] {query}",
+        border_style=BORDER_PRIMARY,
+        box=BOX_PANEL,
+        title=f"[bold {_A}]Research Task[/]",
+    ))
+
     # Set output format in config
     config = get_config()
     config.update('output_format', format)
-    
+
     final_answer = ""
     trace = []
     with Progress(
-        SpinnerColumn(),
-        TextColumn("[bold blue]{task.description}"),
-        BarColumn(),
+        SpinnerColumn(style=f"bold {_P}"),
+        TextColumn(f"[bold {_P}]{{task.description}}"),
+        BarColumn(bar_width=None, style=_P, complete_style=_S),
         TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
         TimeElapsedColumn(),
-        console=console
+        console=console,
     ) as progress:
-        task = progress.add_task("[cyan]Researching...", total=100)
+        task = progress.add_task(f"[{_P}]Researching…", total=100)
         
         for i in range(10):
             if i == 0:
@@ -431,12 +450,19 @@ def research(query, output, format):
     with open(filename, 'w', encoding='utf-8') as f:
         f.write(format_react_markdown(query, final_answer, trace))
     
-    console.print(Panel(f"[bold green]✓[/bold green] Research complete! Results saved to [bold cyan]{filename}[/bold cyan]", 
-                        border_style="green"))
-    
-    # Show a preview of the results
+    console.print(Panel(
+        f"[bold {_S}][+][/] Saved to [bold {_I}]{filename}[/]",
+        border_style=BORDER_SUCCESS,
+        box=BOX_PANEL,
+    ))
+
     snippet = final_answer.strip()[:1500]
-    console.print(Panel(snippet if snippet else "[no answer produced]", title="Final Answer Preview", border_style="cyan"))
+    console.print(Panel(
+        snippet if snippet else "[no answer produced]",
+        title=f"[bold {_A}]Answer Preview[/]",
+        border_style=BORDER_INFO,
+        box=BOX_PANEL,
+    ))
 
 @cli.command()
 @click.argument('file', type=click.Path(exists=True), required=True)
@@ -463,10 +489,15 @@ def batch_research(file, output, format):
     # Use our new task parser
     tasks = parse_tasks_from_file(file)
     
-    console.print(Panel(f"[bold cyan]Processing {len(tasks)} lesson requests from {file}[/bold cyan]", border_style="blue"))
-    
+    console.print(Panel(
+        f"[bold {_P}]{len(tasks)} tasks[/] from [bold {_I}]{file}[/]",
+        title=f"[bold {_A}]Batch Research[/]",
+        border_style=BORDER_PRIMARY,
+        box=BOX_PANEL,
+    ))
+
     # Create table for results summary
-    results_table = Table(show_header=True, header_style="bold cyan", box=box.ROUNDED)
+    results_table = Table(show_header=True, header_style=f"bold {_A}", box=BOX_TABLE)
     results_table.add_column("#", style="dim")
     results_table.add_column("Task", style="cyan")
     results_table.add_column("Status", style="green")
@@ -474,28 +505,28 @@ def batch_research(file, output, format):
     
     # Process each task with a progress display
     for i, task in enumerate(tasks):
-        console.print(f"\n[bold blue]Task {i+1}/{len(tasks)}:[/bold blue] {task[:80]}...")
-        
+        console.print(f"\n[bold {_A}]{i+1}/{len(tasks)}[/] [bold {_P}]{task[:80]}[/]…")
+
         result_text = "No answer produced."
-        status = "✗ Failed"
+        status = "[x] Failed"
         with Progress(
-            SpinnerColumn(),
-            TextColumn("[bold blue]{task.description}"),
-            BarColumn(),
+            SpinnerColumn(style=f"bold {_P}"),
+            TextColumn(f"[{_P}]{{task.description}}"),
+            BarColumn(bar_width=None, style=_P, complete_style=_S),
             TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            console=console
+            console=console,
         ) as progress:
-            research_task = progress.add_task(f"[cyan]Researching task {i+1}/{len(tasks)}...", total=100)
+            research_task = progress.add_task(f"[{_P}]Task {i+1}/{len(tasks)}…", total=100)
             for j in range(10):
                 if j == 0:
                     try:
                         final_answer, trace = _run_react_agent(task)
                         result_text = format_react_markdown(task, final_answer, trace)
-                        status = "✓ Complete"
+                        status = "[+] Complete"
                     except Exception as e:
                         console.print(f"[bold red]Error:[/bold red] {str(e)}")
                         result_text = f"Error: {str(e)}"
-                        status = "✗ Failed"
+                        status = "[x] Failed"
                 progress.update(research_task, completed=(j * 10))
                 if j < 9:
                     time.sleep(0.1)
@@ -515,7 +546,7 @@ def batch_research(file, output, format):
             output_path
         )
     
-    console.print("\n[bold green]✓ All tasks completed![/bold green]")
+    console.print(f"\n[bold {_S}][+] All {len(tasks)} tasks completed[/]")
     console.print(results_table)
 
 @cli.command()
@@ -538,11 +569,12 @@ def config(api_key, serper_key, timeout, format, model, fallback_model, use_keyr
     except ImportError:
         secure_storage = False
         console.print(Panel(
-            "[bold yellow]Security Recommendation[/bold yellow]\n\n"
-            "For secure credential storage, install the keyring package:\n"
+            f"[{_W}]Install keyring for secure credential storage:[/]\n"
             "[bold]pip install keyring[/bold]\n\n"
-            "Without keyring, API keys will be stored in a .env file.",
-            border_style="yellow"
+            f"[{_D}]Without keyring, API keys are stored in .env[/]",
+            title=f"[bold {_A}]Security Recommendation[/]",
+            border_style=BORDER_WARNING,
+            box=BOX_PANEL,
         ))
     
     if show:
@@ -568,46 +600,45 @@ def config(api_key, serper_key, timeout, format, model, fallback_model, use_keyr
     # Set keyring preference if specified
     if use_keyring is not None:
         if use_keyring and not secure_storage:
-            console.print("[yellow]Warning: System keyring support not available. Install the 'keyring' package.[/yellow]")
+            console.print(f"[{_W}]Warning: keyring unavailable — install with pip install keyring[/]")
         config.update('use_keyring', use_keyring and secure_storage)
-        console.print(f"{'✅' if use_keyring else '❌'} {'Enabled' if use_keyring else 'Disabled'} secure credential storage")
-    
+        label = "Enabled" if use_keyring else "Disabled"
+        console.print(f"[bold {_S}][+][/] {label} secure credential storage")
+
     # Update API keys with secure storage if possible
     if api_key:
         stored_securely = config.update('gemini_api_key', api_key, store_in_keyring=True) if secure_storage else False
-        console.print(f"✅ Updated Gemini API key{' (stored securely)' if stored_securely else ''}")
+        console.print(f"[bold {_S}][+][/] Gemini API key updated{' (keyring)' if stored_securely else ''}")
         if not stored_securely:
             _save_to_env_file('gemini_api_key', api_key)
-    
+
     if serper_key:
         stored_securely = config.update('serper_api_key', serper_key, store_in_keyring=True) if secure_storage else False
-        console.print(f"✅ Updated Serper API key{' (stored securely)' if stored_securely else ''}")
+        console.print(f"[bold {_S}][+][/] Serper API key updated{' (keyring)' if stored_securely else ''}")
         if not stored_securely:
             _save_to_env_file('serper_api_key', serper_key)
-    
-    # Other config updates
+
     if timeout:
         config.update('timeout', timeout)
-        console.print(f"✅ Updated request timeout to {timeout} seconds")
-    
+        console.print(f"[bold {_S}][+][/] Timeout -> {timeout}s")
+
     if format:
         config.update('output_format', format)
-        console.print(f"✅ Updated default output format to {format}")
-    
+        console.print(f"[bold {_S}][+][/] Output format -> {format}")
+
     if model:
         config.update('model_name', model)
-        console.print(f"✅ Preferred Gemini model set to {model}")
-    
+        console.print(f"[bold {_S}][+][/] Primary model -> {model}")
+
     if fallback_model:
         config.update('model_fallback', fallback_model)
-        console.print(f"✅ Fallback Gemini model set to {fallback_model}")
-    
+        console.print(f"[bold {_S}][+][/] Fallback model -> {fallback_model}")
+
     # If use_keyring is explicitly set to True but keyring isn't available
     if use_keyring is True and not secure_storage:
-        console.print("[yellow]Warning: System keyring support not available. Install the 'keyring' package.[/yellow]")
-        console.print("[bold]pip install keyring[/bold]")
+        console.print(f"[{_W}]Keyring unavailable — pip install keyring[/]")
         config.update('use_keyring', False)
-        console.print("[yellow]❌ Keyring storage disabled - unavailable on this system[/yellow]")
+        console.print(f"[{_E}][x] Keyring storage disabled[/]")
     
     # Only check for missing keys if no specific updates were provided
     if not any([api_key, serper_key, timeout, format, use_keyring is not None]):
@@ -673,8 +704,7 @@ def shell(verbose):
     # Display banner (we'll keep this since shell can be called directly)
     display_banner()
     
-    console.print("\n[bold cyan]Interactive Shell Started[/bold cyan]")
-    console.print("[dim]Type commands to interact with the agent. Try 'help' for assistance.[/dim]\n")
+    console.print(f"\n[bold {_P}]Interactive Shell[/] [grey62]─  type help for commands, exit to quit[/]\n")
     
     while True:
         try:
@@ -693,38 +723,43 @@ def shell(verbose):
                 continue
                 
             if user_input.lower() == 'version':
-                console.print(f"[cyan]Elimu Research Assistant v{__version__}[/cyan]")
+                console.print(f"[{_I}]elimu v{__version__}[/]")
                 continue
             
             if user_input.lower() == 'help':
-                help_table = Table(box=box.ROUNDED)
-                help_table.add_column("Command", style="cyan")
-                help_table.add_column("Description", style="green")
-                
-                help_table.add_row("search <query>", "Research a topic")
-                help_table.add_row("config", "Show/modify configuration")
-                help_table.add_row("clear", "Clear the screen")
-                help_table.add_row("version", "Show version")
-                help_table.add_row("exit/quit", "Exit the shell")
-                
-                console.print(Panel(help_table, title="Help", border_style="blue"))
+                help_table = Table(box=BOX_TABLE, show_header=False)
+                help_table.add_column("Command", style=f"bold {_A}", width=22)
+                help_table.add_column("Description", style=_D)
+                help_table.add_row("search <query>", "Research a topic through the ReAct agent")
+                help_table.add_row("config",         "Show current configuration")
+                help_table.add_row("clear",          "Clear the screen")
+                help_table.add_row("version",        "Show version")
+                help_table.add_row("exit / quit",    "Exit the shell")
+                console.print(Panel(
+                    help_table,
+                    title=f"[bold {_P}]Shell Commands[/]",
+                    border_style=BORDER_PRIMARY,
+                    box=BOX_PANEL,
+                ))
                 continue
             
             if user_input.lower() == 'config':
-                # Show configuration
-                config = get_config()
-                config_table = Table(box=box.ROUNDED)
-                config_table.add_column("Setting", style="cyan")
-                config_table.add_column("Value", style="green")
-                
-                for key, value in config.items():
+                cfg = get_config()
+                config_table = Table(box=BOX_TABLE, show_header=False)
+                config_table.add_column("Setting", style=f"bold {_I}", width=28)
+                config_table.add_column("Value", style=_D)
+                for key, value in cfg.items():
                     if key.endswith('_api_key') and value:
-                        masked_value = f"{value[:4]}...{value[-4:]}"
-                        config_table.add_row(key, masked_value)
+                        display_val = f"{value[:4]}…{value[-4:]}"
                     else:
-                        config_table.add_row(key, str(value))
-                
-                console.print(Panel(config_table, title="Configuration", border_style="blue"))
+                        display_val = str(value)
+                    config_table.add_row(key, display_val)
+                console.print(Panel(
+                    config_table,
+                    title=f"[bold {_A}]Configuration[/]",
+                    border_style=BORDER_INFO,
+                    box=BOX_PANEL,
+                ))
                 continue
             
             # Default to search if no command specified
@@ -741,18 +776,22 @@ def shell(verbose):
                 filename_query = query
 
             if query:
-                console.print(Panel(f"[bold cyan]Researching:[/bold cyan] {query}", border_style="blue"))
+                console.print(Panel(
+                    f"[bold {_P}]Query:[/] {query}",
+                    border_style=BORDER_PRIMARY,
+                    box=BOX_PANEL,
+                ))
                 final_answer = ""
                 trace = []
-                
+
                 with Progress(
-                    SpinnerColumn(),
-                    TextColumn("[bold blue]{task.description}"),
-                    BarColumn(),
+                    SpinnerColumn(style=f"bold {_P}"),
+                    TextColumn(f"[{_P}]{{task.description}}"),
+                    BarColumn(bar_width=None, style=_P, complete_style=_S),
                     TimeElapsedColumn(),
-                    console=console
+                    console=console,
                 ) as progress:
-                    task = progress.add_task("[cyan]Researching...", total=100)
+                    task = progress.add_task(f"[{_P}]Researching…", total=100)
                     for i in range(10):
                         if i == 0:
                             try:
@@ -774,22 +813,27 @@ def shell(verbose):
                     with open(filename, 'w', encoding='utf-8') as f:
                         f.write(_format_react_markdown(query, final_answer, trace))
                     
-                        console.print("\n[bold green]Answer:[/bold green]", style="bold")
-                    console.print(Panel(final_answer, border_style="green", expand=False, title="Direct Answer"))
-                    console.print(f"[bold green]✓[/bold green] Research complete! Results saved to [cyan]{filename}[/cyan]")
+                        console.print(Panel(
+                        final_answer,
+                        title=f"[bold {_A}]Answer[/]",
+                        border_style=BORDER_SUCCESS,
+                        box=BOX_PANEL,
+                        expand=False,
+                    ))
+                    console.print(f"[bold {_S}][+][/] Saved to [{_I}]{filename}[/]")
                 else:
-                    console.print("[bold red]✗[/bold red] Research failed. Please try again.")
+                    console.print(f"[bold {_E}][x][/] Research failed — please try again.")
         
         except KeyboardInterrupt:
-            console.print("\n[yellow]Operation cancelled. Press Ctrl+D or type 'exit' to quit.[/yellow]")
+            console.print(f"\n[{_W}]Cancelled — press Ctrl+D or type exit to quit.[/]")
             continue
         except EOFError:
-            console.print("\n[yellow]Exiting Elimu Research Assistant...[/yellow]")
+            console.print(f"\n[{_W}]Exiting…[/]")
             break
         except Exception as e:
-            console.print(f"[bold red]Error:[/bold red] {str(e)}")
-    
-    console.print("[bold green]Goodbye![/bold green]")
+            console.print(f"[bold {_E}]Error:[/] {e}")
+
+    console.print(f"[bold {_P}]Goodbye.[/]")
 
 def _get_file_extension(format):
     """Get file extension based on output format."""

@@ -50,6 +50,9 @@ dependencies = [
   "keyring>=23.0.0"
 ]
 
+[project.optional-dependencies]
+webapp = ["streamlit>=1.32.0"]
+
 [project.urls]
 "Source Code" = "https://github.com/ashioyajotham/elimu_research_assistant"
 "Bug Tracker" = "https://github.com/ashioyajotham/elimu_research_assistant/issues"

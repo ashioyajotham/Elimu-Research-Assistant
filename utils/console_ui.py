@@ -1,153 +1,187 @@
+"""
+console_ui.py — Elimu Research Assistant terminal theme.
+
+Colour palette (Kenyan landscape):
+  Primary   #2E7D32  deep forest green
+  Accent    #F9A825  savanna gold
+  Info      #0277BD  highland sky blue
+  Error     #C62828  deep red
+  Muted     grey62   dimmed/secondary text
+"""
+
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn, MofNCompleteColumn
 from rich.table import Table
 from rich.markdown import Markdown
 from rich.syntax import Syntax
 from rich.text import Text
+from rich.rule import Rule
+from rich import box
 import logging
 from typing import List, Dict, Any, Optional
 import json
 
-# Create a global console object
+# ── Theme constants ───────────────────────────────────────────────────────────
+
+_P = "#2E7D32"    # primary   (forest green)
+_A = "#F9A825"    # accent    (savanna gold)
+_I = "#0277BD"    # info      (sky blue)
+_E = "#C62828"    # error     (deep red)
+_S = "#43A047"    # success   (bright green)
+_W = "#F57F17"    # warning   (amber)
+_D = "grey62"     # dim/muted
+
+BORDER_PRIMARY  = "green"
+BORDER_ACCENT   = "yellow"
+BORDER_INFO     = "cyan"
+BORDER_SUCCESS  = "green"
+BORDER_ERROR    = "red"
+BORDER_WARNING  = "yellow"
+
+__all__ = [
+    "console",
+    "_P", "_A", "_I", "_E", "_S", "_W", "_D",
+    "BORDER_PRIMARY", "BORDER_ACCENT", "BORDER_INFO",
+    "BORDER_SUCCESS", "BORDER_ERROR", "BORDER_WARNING",
+    "BOX_PANEL", "BOX_TABLE", "BOX_HEAVY",
+    "RichHandler", "configure_logging",
+    "rule", "display_title", "display_task_header",
+    "create_progress_context", "display_result",
+    "display_completion_message", "display_plan",
+    "info", "success", "warn", "error",
+]
+
+# Box styles used across the UI
+BOX_PANEL   = box.ROUNDED
+BOX_TABLE   = box.SIMPLE_HEAD
+BOX_HEAVY   = box.HEAVY_HEAD
+
+# ── Console singleton ─────────────────────────────────────────────────────────
+
 console = Console()
 
+# ── Logging integration ───────────────────────────────────────────────────────
+
 class RichHandler(logging.Handler):
-    """Custom logging handler that uses Rich formatting."""
-    
-    def __init__(self, level=logging.NOTSET):
+    """Logging handler that emits via Rich, using the Elimu colour theme."""
+
+    def __init__(self, level: int = logging.NOTSET):
         super().__init__(level)
         self.console = console
-    
-    def emit(self, record):
+
+    def emit(self, record: logging.LogRecord) -> None:
         try:
             msg = self.format(record)
-            level_name = record.levelname
-            
             if record.levelno >= logging.ERROR:
-                style = "bold red"
+                style = f"bold {_E}"
             elif record.levelno >= logging.WARNING:
-                style = "yellow"
+                style = _W
             elif record.levelno >= logging.INFO:
-                style = "green"
+                style = _S
             else:
-                style = "blue"
-            
-            self.console.print(f"[{style}]{level_name}:[/] {msg}")
+                style = _I
+            self.console.print(f"[{style}]{record.levelname}:[/] {msg}")
         except Exception:
             self.handleError(record)
 
-def configure_logging():
-    """Configure logging to use Rich formatting."""
-    # Remove existing handlers
-    root_logger = logging.getLogger()
-    for handler in list(root_logger.handlers):
-        root_logger.removeHandler(handler)
-    
-    # Set up the Rich handler
+
+def configure_logging() -> None:
+    """Replace root logger handlers with the Rich handler."""
+    root = logging.getLogger()
+    for h in list(root.handlers):
+        root.removeHandler(h)
+
     handler = RichHandler()
-    formatter = logging.Formatter('%(message)s')
-    handler.setFormatter(formatter)
-    
-    root_logger.addHandler(handler)
-    
-    # Also configure specific loggers
-    for logger_name in [
-        "elimu_react.agent",
-        "elimu_react.tools.search",
-        "elimu_react.tools.scrape",
-    ]:
-        logger = logging.getLogger(logger_name)
-        for h in list(logger.handlers):
-            logger.removeHandler(h)
-        logger.propagate = True  # Make sure it uses the root logger's handler
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    root.addHandler(handler)
 
-def display_title(title: str):
-    """Display a title with decorative formatting."""
-    console.print(Panel(f"[bold blue]{title}[/]", border_style="blue"))
+    for name in ("elimu_react.agent", "elimu_react.tools.search", "elimu_react.tools.scrape"):
+        lg = logging.getLogger(name)
+        for h in list(lg.handlers):
+            lg.removeHandler(h)
+        lg.propagate = True
 
-def display_task_header(task_number: int, total_tasks: int, task_description: str):
-    """Display a header for a task."""
-    console.print("\n")
-    console.rule(f"[bold yellow]Task {task_number}/{total_tasks}[/]")
-    console.print(Panel(task_description, title="Current Task", border_style="yellow"))
-    console.print("\n")
+# ── UI primitives ─────────────────────────────────────────────────────────────
 
-def create_progress_context():
-    """Create a progress context with multiple status indicators."""
+def rule(title: str = "", style: str = _P) -> None:
+    """Print a themed horizontal rule."""
+    console.print(Rule(title, style=style))
+
+
+def display_title(title: str) -> None:
+    """A bold primary-coloured title panel."""
+    console.print(Panel(
+        f"[bold {_P}]{title}[/]",
+        border_style=BORDER_PRIMARY,
+        box=BOX_PANEL,
+    ))
+
+
+def display_task_header(task_number: int, total_tasks: int, task_description: str) -> None:
+    """Numbered task header with accent styling."""
+    console.print()
+    console.print(Rule(f"[bold {_A}]Task {task_number} of {total_tasks}[/]", style=_A))
+    console.print(Panel(
+        f"[{_A}]{task_description}[/]",
+        title=f"[bold {_A}]Task {task_number}/{total_tasks}[/]",
+        border_style=BORDER_ACCENT,
+        box=BOX_PANEL,
+    ))
+    console.print()
+
+
+def create_progress_context() -> Progress:
+    """Themed progress bar context."""
     return Progress(
-        SpinnerColumn(),
-        TextColumn("[bold blue]{task.description}"),
-        BarColumn(),
-        TextColumn("[bold green]{task.completed}/{task.total}"),
+        SpinnerColumn(style=f"bold {_P}"),
+        TextColumn(f"[bold {_P}]{{task.description}}"),
+        BarColumn(bar_width=None, style=_P, complete_style=_S),
+        MofNCompleteColumn(),
         TimeElapsedColumn(),
-        console=console
+        console=console,
     )
 
-def display_plan(plan_steps: List[Dict[str, Any]]):
-    """Display the plan steps in a table."""
-    table = Table(title="Execution Plan", show_header=True, header_style="bold magenta")
-    table.add_column("#", style="dim")
-    table.add_column("Step Description")
-    table.add_column("Tool")
-    
-    for i, step in enumerate(plan_steps, 1):
-        table.add_row(
-            str(i),
-            step["description"],
-            step["tool"]
-        )
-    
-    console.print(table)
-    console.print("\n")
 
-def display_result(step_number: int, step_description: str, status: str, output: Any):
-    """Display a result from a step in a formatted way."""
+# ── Result display ────────────────────────────────────────────────────────────
+
+def display_result(step_number: int, step_description: str, status: str, output: Any) -> None:
+    """Display a step result with themed status colours."""
     if status == "success":
-        header_style = "green"
-        status_display = "[bold green]SUCCESS[/]"
+        status_display = f"[bold {_S}]SUCCESS[/]"
+        header_color = _S
     else:
-        header_style = "red"
-        status_display = "[bold red]ERROR[/]"
-    
-    console.print(f"\n[bold {header_style}]Step {step_number}: {step_description}[/]")
+        status_display = f"[bold {_E}]ERROR[/]"
+        header_color = _E
+
+    console.print(f"\n[bold {header_color}]Step {step_number}:[/] {step_description}")
     console.print(f"Status: {status_display}")
-    
+
     if status == "error":
-        console.print(Panel(str(output), title="Error", border_style="red"))
+        console.print(Panel(str(output), title="Error", border_style=BORDER_ERROR, box=BOX_PANEL))
         return
-    
+
     if isinstance(output, dict):
         if "error" in output:
-            console.print(Panel(output["error"], title="Error", border_style="red"))
-        elif "content" in output:  # Browser results
-            console.print(f"[bold]Source:[/] {output.get('title', 'Web content')} ({output.get('url', 'unknown URL')})")
-            md = Markdown(output['content'][:500] + ("..." if len(output['content']) > 500 else ""))
+            console.print(Panel(output["error"], title="Error", border_style=BORDER_ERROR, box=BOX_PANEL))
+        elif "content" in output:
+            console.print(f"[bold]Source:[/] {output.get('title', 'Web content')} ({output.get('url', '')})")
+            md = Markdown(output["content"][:500] + ("…" if len(output["content"]) > 500 else ""))
             console.print(md)
-        elif "results" in output:  # Search results
-            console.print(f"[bold]Search Query:[/] {output.get('query', 'Unknown query')}")
-            console.print(f"[bold]Found:[/] {output.get('result_count', 0)} results")
-            
-            results_table = Table(show_header=True)
-            results_table.add_column("#", style="dim")
-            results_table.add_column("Title")
-            results_table.add_column("Link", style="blue")
-            
-            for i, result in enumerate(output.get('results', []), 1):
-                results_table.add_row(
-                    str(i),
-                    result.get('title', 'No title'),
-                    result.get('link', '#')
-                )
-            
-            console.print(results_table)
+        elif "results" in output:
+            console.print(f"[bold]Query:[/] {output.get('query', '')}")
+            t = Table(show_header=True, header_style=f"bold {_P}", box=BOX_TABLE)
+            t.add_column("#", style=_D, width=3)
+            t.add_column("Title")
+            t.add_column("URL", style=_I)
+            for i, r in enumerate(output.get("results", []), 1):
+                t.add_row(str(i), r.get("title", ""), r.get("link", ""))
+            console.print(t)
         else:
-            # Generic dictionary output
             console.print_json(json.dumps(output))
     elif isinstance(output, str):
+        import re
         if output.startswith("```"):
-            # This is a code block, try to extract the language
-            import re
             lang_match = re.match(r"```(\w+)", output)
             language = lang_match.group(1) if lang_match else "text"
             code = re.sub(r"```\w*\n", "", output).replace("```", "")
@@ -157,12 +191,49 @@ def display_result(step_number: int, step_description: str, status: str, output:
     else:
         console.print(str(output))
 
-def display_completion_message(task_description: str, output_file: str):
-    """Display a message indicating task completion."""
+
+def display_completion_message(task_description: str, output_file: str) -> None:
+    """Success panel at task completion."""
     console.print(Panel(
-        f"[bold green]Task completed successfully![/]\n\n"
-        f"Results for: {task_description}\n\n"
-        f"Saved to: {output_file}",
-        title="Task Complete",
-        border_style="green"
+        f"[bold {_S}]Complete[/]\n\n"
+        f"{task_description}\n\n"
+        f"[{_D}]Saved to:[/] [{_I}]{output_file}[/]",
+        title=f"[bold {_S}]Task Done[/]",
+        border_style=BORDER_SUCCESS,
+        box=BOX_PANEL,
     ))
+
+
+# ── Info / warning / error helpers ───────────────────────────────────────────
+
+def info(msg: str) -> None:
+    console.print(f"[{_I}]{msg}[/]")
+
+def success(msg: str) -> None:
+    console.print(f"[bold {_S}][OK][/] {msg}")
+
+def warn(msg: str) -> None:
+    console.print(f"[{_W}][!] {msg}[/]")
+
+def error(msg: str) -> None:
+    console.print(f"[bold {_E}][ERR][/] {msg}")
+
+
+# ── Plan display ──────────────────────────────────────────────────────────────
+
+def display_plan(plan_steps: List[Dict[str, Any]]) -> None:
+    """Render plan steps as a themed table."""
+    t = Table(
+        title=f"[bold {_P}]Execution Plan[/]",
+        show_header=True,
+        header_style=f"bold {_A}",
+        box=BOX_TABLE,
+        border_style=BORDER_PRIMARY,
+    )
+    t.add_column("#", style=_D, width=4)
+    t.add_column("Step")
+    t.add_column("Tool", style=_I)
+    for i, step in enumerate(plan_steps, 1):
+        t.add_row(str(i), step.get("description", ""), step.get("tool", ""))
+    console.print(t)
+    console.print()
