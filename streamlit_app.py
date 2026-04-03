@@ -204,14 +204,20 @@ hr { border-color: var(--border) !important; margin: 14px 0 !important; }
 [data-testid="stSidebarNavToggleButton"] {
     display: flex !important;
     visibility: visible !important;
-    opacity: 0.4 !important;
+    opacity: 1 !important;
+    color: #ffffff !important;
     border-radius: 6px !important;
-    transition: opacity 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+    transition: box-shadow 0.2s ease, background 0.2s ease !important;
+}
+[data-testid="stSidebarCollapsedControl"] svg,
+[data-testid="collapsedControl"] svg,
+[data-testid="stSidebarNavToggleButton"] svg {
+    fill: #ffffff !important;
+    color: #ffffff !important;
 }
 [data-testid="stSidebarCollapsedControl"]:hover,
 [data-testid="collapsedControl"]:hover,
 [data-testid="stSidebarNavToggleButton"]:hover {
-    opacity: 1 !important;
     box-shadow: 0 0 10px rgba(249,168,37,0.5) !important;
     background: rgba(46,125,50,0.25) !important;
     cursor: pointer !important;
