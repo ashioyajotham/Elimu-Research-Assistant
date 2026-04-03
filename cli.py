@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from utils.logger import get_logger, set_log_level
 from config.config import get_config, init_config
 from elimu_react import build_elimu_agent
-from utils.react_output import format_react_markdown
+from utils.react_output import format_react_markdown, format_react_html
 from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
@@ -513,7 +513,10 @@ def research(query, output, format):
     # Save result to file with sanitized filename
     filename = f"{output}/result_{_sanitize_filename(query)}.{_get_file_extension(format)}"
     with open(filename, 'w', encoding='utf-8') as f:
-        f.write(format_react_markdown(query, final_answer, trace))
+        if format == 'html':
+            f.write(format_react_html(query, final_answer, trace))
+        else:
+            f.write(format_react_markdown(query, final_answer, trace))
     
     console.print(Panel(
         f"[bold {_S}][+][/] Saved to [bold {_I}]{filename}[/]",
@@ -587,7 +590,10 @@ def batch_research(file, output, format):
                 if j == 0:
                     try:
                         final_answer, trace = _run_react_agent(task)
-                        result_text = format_react_markdown(task, final_answer, trace)
+                        if format == 'html':
+                            result_text = format_react_html(task, final_answer, trace)
+                        else:
+                            result_text = format_react_markdown(task, final_answer, trace)
                         status = "[+] Complete"
                     except Exception as e:
                         console.print(f"[bold red]Error:[/bold red] {str(e)}")
@@ -654,7 +660,7 @@ def config(api_key, serper_key, timeout, format, model, fallback_model, use_keyr
             except Exception:
                 secure_keys = {}
         
-        for key, value in (config.items() if hasattr(config, 'items') else config.get_all().items()):
+        for key, value in config.get_all().items():
             if key.endswith('_api_key') and value:
                 value = f"{value[:4]}...{value[-4:]}"
                 storage_info = " [stored in system keyring]" if secure_keys.get(key, False) else ""
@@ -814,7 +820,7 @@ def shell(verbose):
                 config_table = Table(box=BOX_TABLE, show_header=False)
                 config_table.add_column("Setting", style=f"bold {_I}", width=28)
                 config_table.add_column("Value", style=_D)
-                for key, value in cfg.items():
+                for key, value in cfg.get_all().items():
                     if key.endswith('_api_key') and value:
                         display_val = f"{value[:4]}…{value[-4:]}"
                     else:

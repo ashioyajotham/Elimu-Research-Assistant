@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-04-03
+
+### Fixed
+- `elimu config` (inside shell) crashed with `'ElimuConfigManager' object has no attribute 'items'` — switched to `get_all().items()` throughout
+- `elimu config --show` had an incorrect `hasattr` guard that still hit the missing `items()` method — same fix applied
+- `elimu research --format html` and `elimu batch-research --format html` wrote raw markdown into `.html` files; output is now a self-contained HTML document with dark-theme CSS and proper heading/bold/list rendering
+
 ## [1.2.3] - 2026-04-03
 
 ### Added
