@@ -834,15 +834,29 @@ def shell(verbose):
                 ))
                 continue
             
-            # Default to search if no command specified
-            if not user_input.lower().startswith('search '):
-                query = user_input
+            # Only research on explicit `search <query>`; everything else is unknown
+            if user_input.lower().startswith('search '):
+                query = user_input[7:].strip()
+                if not query:
+                    console.print(f"[{_W}][!] Usage: search <query>[/]")
+                    continue
             else:
-                query = user_input[7:]
-            
+                inp = user_input.strip()
+                _CMDS = ('search', 'config', 'help', 'clear', 'version', 'exit', 'quit')
+                suggestions = [c for c in _CMDS if c.startswith(inp.lower())]
+                if suggestions:
+                    hint = " / ".join(f"[bold {_A}]{s}[/]" for s in suggestions)
+                    console.print(f"[{_W}][!][/] Did you mean: {hint}?")
+                else:
+                    console.print(
+                        f"[{_W}][!][/] [{_D}]{inp!r}[/] is not a recognised command. "
+                        f"Type [bold {_A}]help[/] for available commands, "
+                        f"or [bold {_A}]search <query>[/] to research."
+                    )
+                continue
+
             # Strip surrounding quotes from the query
             if (query.startswith('"') and query.endswith('"')) or (query.startswith("'") and query.endswith("'")):
-                # Only strip quotes for filename, leave original query for searching
                 filename_query = query[1:-1]
             else:
                 filename_query = query

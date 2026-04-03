@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-04-03
+
+### Fixed
+- Shell: typing a partial/mistyped word (e.g. `ex`, `qui`) no longer fires a search query — unknown single-word inputs now show command suggestions (`Did you mean: exit?`); research only runs on explicit `search <query>`
+
+### Changed
+- Streamlit: model selector removed — model is shown as a read-only badge (`gemini-2.0-flash`) matching the CLI agent
+- Streamlit: examples now auto-populate the input box on click (fixed via `key="query_input"` session_state binding)
+- Streamlit: live ReAct step display while agent runs — shows each Thought + Action as it happens, updates every ~1.2 s
+- Streamlit: Run Research button disabled while a run is in progress; Cancel button replaces Clear during a run
+- Streamlit: About section added to sidebar with architecture summary, CLI install command, and PyPI/GitHub links
+- Streamlit: CSS overhauled — secondary buttons (examples, clear) styled as dark chip elements distinct from the primary green action buttons; header wordmark, progress panel, and result body updated
+
 ## [1.2.4] - 2026-04-03
 
 ### Fixed

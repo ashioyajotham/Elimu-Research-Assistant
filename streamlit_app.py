@@ -2,15 +2,15 @@
 streamlit_app.py — Elimu Research Assistant web interface.
 
 Run with:
-    streamlit run streamlit_app.py
+    python -m streamlit run streamlit_app.py
 """
 
 import sys
 import os
 import threading
 import queue
+import time
 
-# Make project root importable
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import streamlit as st
@@ -19,236 +19,187 @@ from pathlib import Path
 # ── Page config (must be first Streamlit call) ────────────────────────────────
 st.set_page_config(
     page_title="Elimu Research Assistant",
-    page_icon="📚",
+    page_icon=None,
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ── Theme / CSS ───────────────────────────────────────────────────────────────
+# ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-/* ── Palette ──────────────────────────────────────────────────────────── */
 :root {
-    --green-dark:   #1B5E20;
-    --green-mid:    #2E7D32;
-    --green-light:  #43A047;
-    --gold:         #F9A825;
-    --gold-light:   #FDD835;
-    --sky:          #0277BD;
-    --red:          #C62828;
-    --bg-dark:      #0D1117;
-    --bg-card:      #161B22;
-    --bg-card2:     #1C2430;
-    --text-main:    #E6EDF3;
-    --text-muted:   #8B949E;
-    --border:       #30363D;
+    --green-dark:  #1B5E20;
+    --green-mid:   #2E7D32;
+    --green-light: #43A047;
+    --gold:        #F9A825;
+    --sky:         #0277BD;
+    --red:         #C62828;
+    --bg:          #0D1117;
+    --card:        #161B22;
+    --card2:       #1C2430;
+    --text:        #E6EDF3;
+    --muted:       #8B949E;
+    --border:      #30363D;
 }
 
-/* ── Global reset ──────────────────────────────────────────────────────── */
-.stApp {
-    background-color: var(--bg-dark);
-    color: var(--text-main);
-    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-}
+/* ── Global ── */
+.stApp { background: var(--bg); color: var(--text); font-family: 'Inter','Segoe UI',system-ui,sans-serif; }
 
-/* ── Header bar ─────────────────────────────────────────────────────────── */
+/* ── Header ── */
 .elimu-header {
-    background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 60%, #1A3A5C 100%);
-    border-radius: 12px;
-    padding: 28px 32px;
-    margin-bottom: 24px;
-    border-bottom: 3px solid var(--gold);
+    background: linear-gradient(135deg, var(--green-dark) 0%, var(--green-mid) 55%, #1A3A5C 100%);
+    border-radius: 10px; padding: 22px 28px; margin-bottom: 20px;
+    border-bottom: 3px solid var(--gold); position: relative; overflow: hidden;
 }
-.elimu-header h1 {
-    color: var(--text-main);
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 0 0 4px 0;
-    letter-spacing: -0.5px;
+.elimu-header::after {
+    content: ''; position: absolute; top: -50px; right: -50px;
+    width: 200px; height: 200px; background: rgba(249,168,37,0.05); border-radius: 50%;
 }
-.elimu-header .subtitle {
-    color: var(--gold);
-    font-size: 0.9rem;
-    font-weight: 500;
-    letter-spacing: 1px;
-    text-transform: uppercase;
+.elimu-header .wordmark { font-size: 1.65rem; font-weight: 700; color: var(--text); margin: 0 0 2px; letter-spacing: -.4px; }
+.elimu-header .wordmark span { color: var(--gold); }
+.elimu-header .subtitle  { color: var(--gold); font-size: .75rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; }
+.elimu-header .tagline   { color: var(--muted); font-size: .82rem; margin-top: 4px; }
+
+/* ── Cards ── */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin-bottom: 12px; }
+.card-accent  { border-left: 3px solid var(--gold); }
+.card-error   { border-left: 3px solid var(--red); }
+
+/* ── Input ── */
+.stTextArea textarea {
+    background: var(--card)  !important; border: 1px solid var(--border) !important;
+    color: var(--text) !important; border-radius: 7px !important; font-size: .93rem !important;
 }
-.elimu-header .tagline {
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    margin-top: 6px;
+.stTextArea textarea:focus { border-color: var(--green-light) !important; box-shadow: 0 0 0 2px rgba(46,125,50,.2) !important; }
+
+/* ── Buttons ── */
+div[data-testid="stButton"] > button[kind="primary"] {
+    background: linear-gradient(135deg, var(--green-mid), var(--green-light)) !important;
+    color: #fff !important; border: none !important; border-radius: 7px !important;
+    font-weight: 600 !important; font-size: .93rem !important; letter-spacing: .2px !important;
+}
+div[data-testid="stButton"] > button[kind="primary"]:hover { opacity: .88 !important; }
+div[data-testid="stButton"] > button[kind="primary"]:disabled { opacity: .45 !important; }
+
+div[data-testid="stButton"] > button[kind="secondary"] {
+    background: var(--card2) !important; color: var(--muted) !important;
+    border: 1px solid var(--border) !important; border-radius: 6px !important;
+    font-size: .8rem !important; font-weight: 400 !important;
+    transition: border-color .15s, color .15s !important;
+}
+div[data-testid="stButton"] > button[kind="secondary"]:hover {
+    border-color: var(--green-light) !important; color: var(--green-light) !important;
+}
+div[data-testid="stButton"] > button[kind="secondary"]:disabled { opacity: .35 !important; }
+
+/* ── Examples label ── */
+.ex-label {
+    color: var(--muted); font-size: .72rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;
 }
 
-/* ── Cards ──────────────────────────────────────────────────────────────── */
-.card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 20px 24px;
-    margin-bottom: 16px;
+/* ── Progress panel ── */
+.progress-panel {
+    background: var(--card); border: 1px solid var(--green-mid);
+    border-radius: 8px; padding: 14px 18px; margin: 10px 0;
 }
-.card-accent {
-    border-left: 4px solid var(--gold);
+.progress-title {
+    color: var(--green-light); font-size: .73rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
 }
-.card-success {
-    border-left: 4px solid var(--green-light);
+.p-step {
+    display: flex; align-items: flex-start; gap: 10px; padding: 5px 0;
+    border-bottom: 1px solid var(--border); font-size: .82rem;
 }
-.card-info {
-    border-left: 4px solid var(--sky);
+.p-step:last-child { border-bottom: none; }
+.p-step-n    { color: var(--gold); font-weight: 700; min-width: 18px; }
+.p-step-t    { color: var(--text); flex: 1; }
+.p-step-a    {
+    display: inline-block; background: var(--green-dark); color: var(--gold);
+    border-radius: 3px; padding: 0 6px; font-size: .7rem; font-weight: 600; margin-left: 6px;
 }
-.card-error {
-    border-left: 4px solid var(--red);
-}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.p-step.active .p-step-t { animation: pulse 1.5s ease-in-out infinite; }
 
-/* ── Step trace ─────────────────────────────────────────────────────────── */
+/* ── Stat bar ── */
+.stat-grid { display: flex; gap: 10px; margin-bottom: 16px; }
+.stat-box  {
+    flex: 1; background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 12px; text-align: center;
+}
+.stat-val   { font-size: 1.5rem; font-weight: 700; color: var(--gold); }
+.stat-label { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+
+/* ── Trace step ── */
 .trace-step {
-    background: var(--bg-card2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 8px;
-    font-size: 0.85rem;
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 9px 13px; margin-bottom: 6px; font-size: .83rem;
 }
-.trace-step .step-num {
-    color: var(--gold);
-    font-weight: 700;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-.trace-step .thought {
-    color: var(--text-main);
-    margin: 4px 0;
-}
+.trace-step .step-num  { color: var(--gold); font-weight: 700; font-size: .7rem; text-transform: uppercase; letter-spacing: 1px; }
+.trace-step .thought   { color: var(--text); margin: 3px 0; }
 .trace-step .action-tag {
-    display: inline-block;
-    background: var(--green-dark);
-    color: var(--gold);
-    border-radius: 4px;
-    padding: 1px 8px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    margin-right: 6px;
+    display: inline-block; background: var(--green-dark); color: var(--gold);
+    border-radius: 3px; padding: 0 6px; font-size: .7rem; font-weight: 600; margin-right: 5px;
 }
 .trace-step .observation {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    margin-top: 6px;
-    border-top: 1px solid var(--border);
-    padding-top: 6px;
-    white-space: pre-wrap;
-    max-height: 120px;
-    overflow-y: auto;
+    color: var(--muted); font-size: .77rem; margin-top: 5px;
+    border-top: 1px solid var(--border); padding-top: 5px;
+    white-space: pre-wrap; max-height: 100px; overflow-y: auto;
 }
 
-/* ── Stat boxes ─────────────────────────────────────────────────────────── */
-.stat-grid {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-}
-.stat-box {
-    flex: 1;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 18px;
-    text-align: center;
-}
-.stat-box .stat-val {
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: var(--gold);
-}
-.stat-box .stat-label {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-}
-
-/* ── Inputs / buttons ───────────────────────────────────────────────────── */
-.stTextArea textarea {
-    background: var(--bg-card) !important;
-    border: 1px solid var(--border) !important;
-    color: var(--text-main) !important;
-    border-radius: 8px !important;
-    font-size: 0.95rem !important;
-}
-.stTextArea textarea:focus {
-    border-color: var(--green-light) !important;
-    box-shadow: 0 0 0 2px rgba(46,125,50,0.25) !important;
-}
-div[data-testid="stButton"] button {
-    background: linear-gradient(135deg, var(--green-mid), var(--green-light)) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 8px !important;
-    font-weight: 600 !important;
-    padding: 10px 28px !important;
-    font-size: 0.95rem !important;
-    transition: opacity 0.2s !important;
-}
-div[data-testid="stButton"] button:hover {
-    opacity: 0.88 !important;
-}
-
-/* ── Sidebar ─────────────────────────────────────────────────────────────── */
-section[data-testid="stSidebar"] {
-    background: var(--bg-card) !important;
-    border-right: 1px solid var(--border) !important;
-}
-section[data-testid="stSidebar"] .sidebar-title {
-    color: var(--gold);
-    font-weight: 700;
-    font-size: 1rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    padding: 8px 0 4px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 16px;
-}
-.stTextInput input, .stSelectbox select, .stNumberInput input {
-    background: var(--bg-dark) !important;
-    border-color: var(--border) !important;
-    color: var(--text-main) !important;
-    border-radius: 6px !important;
-}
-
-/* ── Result markdown ─────────────────────────────────────────────────────── */
-.result-body {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 24px 28px;
-    line-height: 1.7;
-    font-size: 0.95rem;
-}
-.result-body h1, .result-body h2, .result-body h3 {
-    color: var(--gold);
-}
-.result-body a {
-    color: var(--sky);
-}
+/* ── Result body ── */
+.result-body { line-height: 1.75; }
+.result-body h1,.result-body h2,.result-body h3 { color: var(--gold); }
+.result-body a { color: var(--sky); }
 .result-body code {
-    background: var(--bg-card2);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 1px 6px;
-    font-size: 0.85rem;
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 3px; padding: 1px 5px; font-size: .85rem;
 }
 
-/* ── Divider ─────────────────────────────────────────────────────────────── */
-hr {
-    border-color: var(--border) !important;
-    margin: 20px 0 !important;
+/* ── Sidebar ── */
+section[data-testid="stSidebar"] { background: var(--card) !important; border-right: 1px solid var(--border) !important; }
+.sb-label {
+    color: var(--gold); font-weight: 700; font-size: .73rem;
+    text-transform: uppercase; letter-spacing: 1.2px;
+    padding: 4px 0 6px; border-bottom: 1px solid var(--border); margin-bottom: 10px;
+}
+.stTextInput input, .stNumberInput input {
+    background: var(--bg) !important; border-color: var(--border) !important;
+    color: var(--text) !important; border-radius: 5px !important;
+}
+.model-badge {
+    display: inline-block; background: var(--green-dark); color: var(--gold);
+    border-radius: 4px; padding: 2px 10px; font-size: .77rem; font-weight: 600; letter-spacing: .4px;
+}
+.about-box {
+    background: var(--card2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 11px 13px; font-size: .8rem; color: var(--muted); line-height: 1.65;
+}
+.about-box strong { color: var(--text); }
+.about-box a { color: var(--sky); text-decoration: none; }
+.about-box code {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 3px; padding: 1px 5px; font-size: .78rem;
 }
 
-/* ── Hide Streamlit branding ─────────────────────────────────────────────── */
+/* ── Misc ── */
+hr { border-color: var(--border) !important; margin: 14px 0 !important; }
 #MainMenu, footer, header { visibility: hidden; }
 .viewerBadge_container__1QSob { display: none; }
 </style>
 """, unsafe_allow_html=True)
+
+# ── Constants ─────────────────────────────────────────────────────────────────
+_MODEL = "gemini-2.0-flash"
+
+_EXAMPLES = [
+    "Create a Form 2 Geography lesson on geothermal energy at Olkaria",
+    "Analyse M-Pesa's impact on rural banking — Form 3 Business Studies",
+    "Pre-colonial trade routes in East Africa — Form 1 History",
+    "Ngugi wa Thiong'o themes in Weep Not Child — Form 4 Literature",
+    "Quadratic equations using Kenya athletics data — Form 3 Maths",
+    "Climate change effects on the Mau Forest — Form 3 Geography",
+]
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -257,99 +208,137 @@ def _load_config():
     init_config()
     return get_config()
 
-def _run_agent_in_thread(query: str, result_queue: queue.Queue) -> None:
-    """Run the ReAct agent in a background thread, push result to queue."""
+
+def _run_agent_in_thread(
+    query: str,
+    result_queue: queue.Queue,
+    step_queue: queue.Queue,
+) -> None:
+    """Run the ReAct agent; push step updates and final result to queues."""
+    done = threading.Event()
     try:
         from elimu_react import build_elimu_agent
         agent = build_elimu_agent()
+
+        def _monitor():
+            seen = 0
+            while not done.is_set():
+                current = agent.steps
+                if len(current) > seen:
+                    for s in current[seen:]:
+                        step_queue.put({
+                            "thought": s.thought or "",
+                            "action":  s.action  or "",
+                        })
+                    seen = len(current)
+                time.sleep(0.35)
+
+        threading.Thread(target=_monitor, daemon=True).start()
+
         answer = agent.run(query)
-        trace = agent.get_execution_trace()
+        trace  = agent.get_execution_trace()
+        done.set()
         result_queue.put({"answer": answer, "trace": trace, "error": None})
     except Exception as exc:
+        done.set()
         result_queue.put({"answer": None, "trace": [], "error": str(exc)})
+
 
 def _render_trace(trace: list) -> None:
     if not trace:
+        st.caption("No trace available.")
         return
-    st.markdown("#### ReAct Trace")
     for step in trace:
-        n = step.get("step", "?")
+        n      = step.get("step", "?")
         thought = step.get("thought", "")
-        action = step.get("action", "")
-        obs = step.get("observation", "")
-        action_input = step.get("action_input", "")
+        action  = step.get("action", "")
+        obs     = step.get("observation", "")
+        a_input = step.get("action_input", "")
 
-        obs_preview = str(obs)[:400] + ("…" if len(str(obs)) > 400 else "") if obs else ""
-        action_str = ""
+        obs_html = ""
+        if obs:
+            obs_preview = str(obs)[:400] + ("…" if len(str(obs)) > 400 else "")
+            obs_html = f'<div class="observation">{obs_preview}</div>'
+
+        action_html = ""
         if action:
-            action_str = f'<span class="action-tag">{action}</span>'
-            if action_input:
-                action_str += f'<code style="font-size:0.78rem">{str(action_input)[:120]}</code>'
-
-        obs_block = f'<div class="observation">{obs_preview}</div>' if obs_preview else ""
+            action_html = f'<span class="action-tag">{action}</span>'
+            if a_input:
+                action_html += f'<code style="font-size:.72rem">{str(a_input)[:100]}</code>'
 
         st.markdown(
-            f"""<div class="trace-step">
-  <div class="step-num">Step {n}</div>
-  <div class="thought">{thought}</div>
-  {action_str}
-  {obs_block}
-</div>""",
+            f'<div class="trace-step">'
+            f'<div class="step-num">Step {n}</div>'
+            f'<div class="thought">{thought}</div>'
+            f'{action_html}{obs_html}'
+            f'</div>',
             unsafe_allow_html=True,
         )
+
+
+def _render_live_steps(steps: list) -> None:
+    if not steps:
+        st.markdown(
+            '<div class="progress-panel"><div class="progress-title">Initialising agent…</div></div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    items = ""
+    for i, s in enumerate(steps):
+        thought = str(s.get("thought", ""))[:130]
+        action  = s.get("action", "")
+        a_html  = f'<span class="p-step-a">{action}</span>' if action else ""
+        active  = " active" if i == len(steps) - 1 else ""
+        items  += (
+            f'<div class="p-step{active}">'
+            f'<span class="p-step-n">{i+1}</span>'
+            f'<span class="p-step-t">{thought}{a_html}</span>'
+            f'</div>'
+        )
+
+    last = steps[-1]
+    summary = str(last.get("thought", ""))
+    title   = f"Step {len(steps)} — {summary[:70]}{'…' if len(summary) > 70 else ''}"
+
+    st.markdown(
+        f'<div class="progress-panel">'
+        f'<div class="progress-title">{title}</div>'
+        f'{items}</div>',
+        unsafe_allow_html=True,
+    )
+
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
 def render_sidebar(cfg) -> dict:
-    """Render configuration sidebar; return dict of overrides."""
     with st.sidebar:
-        st.markdown('<div class="sidebar-title">Configuration</div>', unsafe_allow_html=True)
-
+        # ── API Keys ──────────────────────────────────────────────────────────
+        st.markdown('<div class="sb-label">API Keys</div>', unsafe_allow_html=True)
         gemini_key = st.text_input(
             "Gemini API Key",
             value=cfg.get("gemini_api_key", "") or "",
             type="password",
-            help="Required. Get one at aistudio.google.com",
+            help="aistudio.google.com/apikey — free tier available",
         )
         serper_key = st.text_input(
             "Serper API Key",
             value=cfg.get("serper_api_key", "") or "",
             type="password",
-            help="Required. Get one at serper.dev (2 500 free searches/month)",
+            help="serper.dev — 2,500 free searches/month",
         )
 
         st.divider()
-        st.markdown('<div class="sidebar-title" style="border-top:none;padding-top:0">Model</div>', unsafe_allow_html=True)
 
-        model_options = [
-            "gemini-2.0-flash",
-            "gemini-2.0-flash-001",
-            "gemini-2.5-flash",
-            "gemini-2.5-pro",
-        ]
-        current_model = cfg.get("model_name", "gemini-2.0-flash")
-        model_idx = model_options.index(current_model) if current_model in model_options else 0
-        model = st.selectbox("Primary model", model_options, index=model_idx)
-
-        max_iter = st.number_input(
-            "Max iterations",
-            min_value=3,
-            max_value=20,
-            value=int(cfg.get("max_iterations", 12)),
-            help="ReAct loop cap. Higher = more thorough, slower.",
-        )
-        temperature = st.slider(
-            "Temperature",
-            min_value=0.0,
-            max_value=1.0,
-            value=float(cfg.get("model_temperature", 0.15)),
-            step=0.05,
-            help="0.0 = deterministic, 1.0 = creative",
-        )
+        # ── Model (read-only) ─────────────────────────────────────────────────
+        st.markdown('<div class="sb-label">Model</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="model-badge">{_MODEL}</div>', unsafe_allow_html=True)
+        st.caption("ReAct loop · max 15 iterations")
 
         st.divider()
-        st.markdown('<div class="sidebar-title" style="border-top:none;padding-top:0">Search</div>', unsafe_allow_html=True)
 
+        # ── Search settings ───────────────────────────────────────────────────
+        st.markdown('<div class="sb-label">Search</div>', unsafe_allow_html=True)
         kenya_bias = st.toggle(
             "Prioritise Kenyan sources",
             value=bool(cfg.get("prioritize_kenyan_sources", True)),
@@ -364,162 +353,220 @@ def render_sidebar(cfg) -> dict:
                 cfg.update("gemini_api_key", gemini_key)
             if serper_key:
                 cfg.update("serper_api_key", serper_key)
-            cfg.update("model_name", model)
-            cfg.update("max_iterations", max_iter)
-            cfg.update("model_temperature", temperature)
             cfg.update("prioritize_kenyan_sources", kenya_bias)
             cfg.update("educational_focus", edu_focus)
             st.success("Settings saved.")
 
         st.divider()
+
+        # ── About ─────────────────────────────────────────────────────────────
+        st.markdown('<div class="sb-label">About</div>', unsafe_allow_html=True)
+
         ver_file = Path(__file__).parent / "VERSION"
         ver = ver_file.read_text().strip() if ver_file.exists() else "—"
-        st.caption(f"v{ver} · Ashioya Jotham")
+
+        st.markdown(f"""
+<div class="about-box">
+<strong>Elimu Research Assistant v{ver}</strong><br>
+Generates Kenya-curriculum-aligned educational content through a live-web
+ReAct loop tuned for secondary school educators.<br><br>
+
+<strong>Architecture</strong><br>
+Gemini 2.0 Flash &rarr; ReAct (Thought / Action / Observe) &rarr;
+Serper.dev search &rarr; BeautifulSoup extraction &rarr; structured lesson output<br><br>
+
+<strong>Install the CLI</strong><br>
+<code>pip install elimu-research-assistant</code><br><br>
+
+<a href="https://pypi.org/project/elimu-research-assistant/" target="_blank">PyPI</a>
+&nbsp;&middot;&nbsp;
+<a href="https://github.com/ashioyajotham/elimu_research_assistant" target="_blank">GitHub</a>
+</div>
+""", unsafe_allow_html=True)
 
     return {
         "gemini_api_key": gemini_key,
         "serper_api_key": serper_key,
-        "model": model,
-        "max_iter": max_iter,
-        "temperature": temperature,
-        "kenya_bias": kenya_bias,
-        "edu_focus": edu_focus,
+        "kenya_bias":     kenya_bias,
+        "edu_focus":      edu_focus,
     }
+
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
     cfg = _load_config()
-    overrides = render_sidebar(cfg)
 
-    # Header
+    # ── Poll for in-progress agent result ─────────────────────────────────────
+    if st.session_state.get("running"):
+        step_q:    queue.Queue    = st.session_state.get("step_q")
+        result_q:  queue.Queue    = st.session_state.get("result_q")
+        agent_thr: threading.Thread = st.session_state.get("agent_thread")
+
+        # Drain new steps into session_state list
+        while step_q and not step_q.empty():
+            try:
+                st.session_state["live_steps"].append(step_q.get_nowait())
+            except queue.Empty:
+                break
+
+        # Check if finished
+        result_ready = result_q is not None and not result_q.empty()
+        thread_dead  = agent_thr is not None and not agent_thr.is_alive()
+
+        if result_ready or thread_dead:
+            if result_ready:
+                res = result_q.get_nowait()
+                if res["error"]:
+                    st.session_state["agent_error"] = res["error"]
+                    st.session_state.pop("result", None)
+                else:
+                    st.session_state["result"] = res["answer"]
+                    st.session_state["trace"]  = res["trace"]
+                    st.session_state.pop("agent_error", None)
+            else:
+                st.session_state["agent_error"] = "Agent stopped unexpectedly."
+            st.session_state["running"] = False
+            st.rerun()
+
+    # ── Sidebar (must come before main rendering) ─────────────────────────────
+    overrides = render_sidebar(cfg)
+    g_key = overrides["gemini_api_key"] or cfg.get("gemini_api_key")
+    s_key = overrides["serper_api_key"] or cfg.get("serper_api_key")
+
+    # ── Header ────────────────────────────────────────────────────────────────
     st.markdown("""
 <div class="elimu-header">
-  <h1>📚 Elimu Research Assistant</h1>
-  <div class="subtitle">ReAct · Gemini 2.x · Serper.dev</div>
+  <div class="wordmark">Elimu <span>Research</span> Assistant</div>
+  <div class="subtitle">ReAct &middot; Gemini 2.0 Flash &middot; Serper.dev</div>
   <div class="tagline">Kenyan-context educational content generation via live web research</div>
 </div>
 """, unsafe_allow_html=True)
 
-    # Key check
-    g_key = overrides["gemini_api_key"] or cfg.get("gemini_api_key")
-    s_key = overrides["serper_api_key"] or cfg.get("serper_api_key")
+    # ── API key warning ───────────────────────────────────────────────────────
     if not g_key or not s_key:
-        st.markdown("""
-<div class="card card-accent">
-  <strong style="color:#F9A825">API keys required</strong><br>
-  Enter your Gemini and Serper API keys in the sidebar to get started.<br>
-  <span style="color:#8B949E;font-size:0.85rem">
-    Gemini: aistudio.google.com &nbsp;·&nbsp; Serper: serper.dev
-  </span>
-</div>
-""", unsafe_allow_html=True)
-
-    # Research input
-    col_input, col_examples = st.columns([3, 1])
-
-    with col_input:
-        query = st.text_area(
-            "Research query",
-            placeholder='e.g. "Create a Form 3 Business Studies lesson on M-Pesa\'s impact on small enterprises in the Rift Valley"',
-            height=110,
-            label_visibility="collapsed",
-        )
-        run_col, clear_col = st.columns([2, 1])
-        with run_col:
-            run_btn = st.button("Run Research", type="primary", use_container_width=True)
-        with clear_col:
-            if st.button("Clear", use_container_width=True):
-                for k in ("result", "trace", "last_query"):
-                    st.session_state.pop(k, None)
-                st.rerun()
-
-    with col_examples:
+        missing = []
+        if not g_key:
+            missing.append('<a href="https://aistudio.google.com/apikey" target="_blank">Gemini API key</a>')
+        if not s_key:
+            missing.append('<a href="https://serper.dev" target="_blank">Serper API key</a>')
         st.markdown(
-            '<div style="color:#8B949E;font-size:0.78rem;font-weight:600;text-transform:uppercase;'
-            'letter-spacing:1px;margin-bottom:8px">Examples</div>',
+            f'<div class="card card-accent"><strong style="color:#F9A825">Setup required</strong>'
+            f' &mdash; enter your {" and ".join(missing)} in the sidebar to continue.</div>',
             unsafe_allow_html=True,
         )
-        examples = [
-            "Geothermal energy at Olkaria — Form 2 Geography",
-            "M-Pesa impact on rural banking — Form 3 Business",
-            "Pre-colonial trade routes in East Africa — History",
-            "Ngugi wa Thiong'o themes — Literature guide",
-            "Quadratic equations with Kenyan sports data — Maths",
-        ]
-        for ex in examples:
-            if st.button(ex, key=f"ex_{ex[:20]}", use_container_width=True):
-                st.session_state["prefill"] = ex
+
+    # ── Query input ───────────────────────────────────────────────────────────
+    if "query_input" not in st.session_state:
+        st.session_state["query_input"] = ""
+
+    running = st.session_state.get("running", False)
+
+    query = st.text_area(
+        "Research query",
+        placeholder='e.g. "Create a Form 3 Business Studies lesson on M-Pesa\'s impact in the Rift Valley"',
+        height=100,
+        label_visibility="collapsed",
+        key="query_input",
+        disabled=running,
+    )
+
+    # ── Examples ─────────────────────────────────────────────────────────────
+    st.markdown('<div class="ex-label">Examples — click to populate</div>', unsafe_allow_html=True)
+    ex_cols = st.columns(3)
+    for i, ex in enumerate(_EXAMPLES):
+        with ex_cols[i % 3]:
+            if st.button(ex, key=f"ex_{i}", use_container_width=True, disabled=running):
+                st.session_state["query_input"] = ex
                 st.rerun()
 
-    # Prefill handling
-    if "prefill" in st.session_state:
-        query = st.session_state.pop("prefill")
+    st.write("")
 
-    # Run agent
-    if run_btn and query.strip():
-        if not g_key or not s_key:
-            st.error("Configure API keys in the sidebar first.")
+    # ── Action row ────────────────────────────────────────────────────────────
+    keys_ok  = bool(g_key and s_key)
+    query_ok = bool(query.strip())
+
+    run_col, right_col = st.columns([3, 1])
+    with run_col:
+        run_btn = st.button(
+            "Running…" if running else "Run Research",
+            type="primary",
+            use_container_width=True,
+            disabled=running or not query_ok or not keys_ok,
+        )
+    with right_col:
+        if running:
+            cancel_btn = st.button("Cancel", use_container_width=True)
+            if cancel_btn:
+                st.session_state["running"] = False
+                st.session_state.pop("live_steps", None)
+                st.rerun()
         else:
-            # Apply overrides to live config
-            cfg.update("gemini_api_key", g_key)
-            cfg.update("serper_api_key", s_key)
-            cfg.update("model_name", overrides["model"])
-            cfg.update("max_iterations", overrides["max_iter"])
-            cfg.update("model_temperature", overrides["temperature"])
-            cfg.update("prioritize_kenyan_sources", overrides["kenya_bias"])
-            cfg.update("educational_focus", overrides["edu_focus"])
+            if st.button("Clear", use_container_width=True):
+                for k in ("result", "trace", "last_query", "agent_error", "live_steps"):
+                    st.session_state.pop(k, None)
+                st.session_state["query_input"] = ""
+                st.rerun()
 
-            st.session_state["last_query"] = query.strip()
+    # ── Launch agent ──────────────────────────────────────────────────────────
+    if run_btn and query_ok and keys_ok and not running:
+        cfg.update("gemini_api_key", g_key)
+        cfg.update("serper_api_key", s_key)
+        cfg.update("prioritize_kenyan_sources", overrides["kenya_bias"])
+        cfg.update("educational_focus", overrides["edu_focus"])
 
-            with st.spinner("Running ReAct agent…"):
-                q: queue.Queue = queue.Queue()
-                t = threading.Thread(target=_run_agent_in_thread, args=(query.strip(), q), daemon=True)
-                t.start()
-                t.join(timeout=300)  # 5-minute hard cap
+        st.session_state["last_query"]  = query.strip()
+        st.session_state["running"]     = True
+        st.session_state["live_steps"]  = []
+        for k in ("result", "trace", "agent_error"):
+            st.session_state.pop(k, None)
 
-                if not q.empty():
-                    res = q.get_nowait()
-                    if res["error"]:
-                        st.session_state["result"] = None
-                        st.session_state["error"] = res["error"]
-                    else:
-                        st.session_state["result"] = res["answer"]
-                        st.session_state["trace"] = res["trace"]
-                        st.session_state.pop("error", None)
-                else:
-                    st.session_state["error"] = "Agent timed out after 5 minutes."
+        result_q: queue.Queue = queue.Queue()
+        step_q:   queue.Queue = queue.Queue()
+        t = threading.Thread(
+            target=_run_agent_in_thread,
+            args=(query.strip(), result_q, step_q),
+            daemon=True,
+        )
+        t.start()
+        st.session_state["result_q"]    = result_q
+        st.session_state["step_q"]      = step_q
+        st.session_state["agent_thread"] = t
+        st.rerun()
+
+    # ── Live step display while running ───────────────────────────────────────
+    if running:
+        _render_live_steps(st.session_state.get("live_steps", []))
+        time.sleep(1.2)
+        st.rerun()
+
+    # ── Error ─────────────────────────────────────────────────────────────────
+    if "agent_error" in st.session_state:
+        st.markdown(
+            f'<div class="card card-error"><strong style="color:#C62828">Error</strong>'
+            f'<br>{st.session_state["agent_error"]}</div>',
+            unsafe_allow_html=True,
+        )
 
     # ── Results ───────────────────────────────────────────────────────────────
-    if "error" in st.session_state:
-        st.markdown(f"""
-<div class="card card-error">
-  <strong style="color:#C62828">Error</strong><br>
-  {st.session_state['error']}
-</div>
-""", unsafe_allow_html=True)
-
-    if "result" in st.session_state and st.session_state["result"]:
+    if st.session_state.get("result"):
         answer = st.session_state["result"]
-        trace = st.session_state.get("trace", [])
+        trace  = st.session_state.get("trace", [])
         last_q = st.session_state.get("last_query", "")
 
-        # Stats bar
-        word_count = len(answer.split())
-        steps = len(trace)
         st.markdown(f"""
 <div class="stat-grid">
-  <div class="stat-box"><div class="stat-val">{steps}</div><div class="stat-label">ReAct steps</div></div>
-  <div class="stat-box"><div class="stat-val">{word_count:,}</div><div class="stat-label">words</div></div>
+  <div class="stat-box"><div class="stat-val">{len(trace)}</div><div class="stat-label">ReAct steps</div></div>
+  <div class="stat-box"><div class="stat-val">{len(answer.split()):,}</div><div class="stat-label">words</div></div>
   <div class="stat-box"><div class="stat-val">{len(answer):,}</div><div class="stat-label">characters</div></div>
-</div>
-""", unsafe_allow_html=True)
+</div>""", unsafe_allow_html=True)
 
-        # Tabs: result / trace / raw
         tab_result, tab_trace, tab_raw = st.tabs(["Result", "ReAct Trace", "Raw Markdown"])
 
         with tab_result:
+            st.markdown('<div class="result-body">', unsafe_allow_html=True)
             st.markdown(answer)
+            st.markdown('</div>', unsafe_allow_html=True)
 
         with tab_trace:
             _render_trace(trace)
