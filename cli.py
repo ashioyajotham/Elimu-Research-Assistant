@@ -456,9 +456,10 @@ def research(query, output, format):
         box=BOX_PANEL,
     ))
 
+    from rich.markdown import Markdown
     snippet = final_answer.strip()[:1500]
     console.print(Panel(
-        snippet if snippet else "[no answer produced]",
+        Markdown(snippet) if snippet else "[no answer produced]",
         title=f"[bold {_A}]Answer Preview[/]",
         border_style=BORDER_INFO,
         box=BOX_PANEL,
@@ -813,12 +814,12 @@ def shell(verbose):
                     with open(filename, 'w', encoding='utf-8') as f:
                         f.write(_format_react_markdown(query, final_answer, trace))
                     
-                        console.print(Panel(
-                        final_answer,
+                    from rich.markdown import Markdown
+                    console.print(Panel(
+                        Markdown(final_answer),
                         title=f"[bold {_A}]Answer[/]",
                         border_style=BORDER_SUCCESS,
                         box=BOX_PANEL,
-                        expand=False,
                     ))
                     console.print(f"[bold {_S}][+][/] Saved to [{_I}]{filename}[/]")
                 else:
