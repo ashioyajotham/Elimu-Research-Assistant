@@ -212,6 +212,59 @@ def _run_react_agent(task: str):
     trace = agent.get_execution_trace()
     return final_answer, trace
 
+# Where users get their API keys
+_KEY_URLS = {
+    "gemini_api_key": "https://aistudio.google.com/apikey",
+    "serper_api_key": "https://serper.dev/api-key",
+}
+_KEY_LABELS = {
+    "gemini_api_key": "Gemini API key",
+    "serper_api_key": "Serper API key",
+}
+
+def _show_key_status() -> None:
+    """Print a key-status panel — used on bare `elimu` invocation."""
+    config = get_config()
+    keyring_ok = False
+    try:
+        import keyring as _kr  # noqa: F401
+        keyring_ok = True
+    except ImportError:
+        pass
+
+    rows = []
+    all_set = True
+    for key, label in _KEY_LABELS.items():
+        value = config.get(key)
+        if value:
+            secure = keyring_ok and config.securely_stored_keys().get(key, False)
+            source = "keyring" if secure else ".env"
+            rows.append(f"  [{_S}][+][/] [bold]{label}[/]  [{_D}]({source})[/]")
+        else:
+            all_set = False
+            url = _KEY_URLS[key]
+            rows.append(f"  [{_E}][x][/] [bold]{label}[/]  [{_D}]not configured[/]  [{_I}]{url}[/]")
+
+    status_body = "\n".join(rows)
+
+    if all_set:
+        console.print(Panel(
+            status_body,
+            title=f"[bold {_S}]API Keys[/]",
+            border_style=BORDER_SUCCESS,
+            box=BOX_PANEL,
+        ))
+    else:
+        get_url  = f"  [{_I}]https://aistudio.google.com/apikey[/]  [{_D}]Gemini  (free tier)[/]\n"
+        get_url += f"  [{_I}]https://serper.dev/api-key[/]          [{_D}]Serper  (2,500 free searches/month)[/]"
+        console.print(Panel(
+            status_body + f"\n\n[bold {_A}]Get your keys:[/]\n" + get_url +
+            f"\n\n[{_D}]Then run:[/]  [bold]elimu config --api-key KEY --serper-key KEY[/]",
+            title=f"[bold {_A}]Setup Required[/]",
+            border_style=BORDER_WARNING,
+            box=BOX_PANEL,
+        ))
+
 @click.group()
 @click.version_option(__version__, message="%(prog)s version %(version)s")
 @click.option('--verbose', '-v', is_flag=True, help="Enable verbose logging")
@@ -248,9 +301,11 @@ def cli(verbose, no_config):
     ctx.obj = ctx.obj or {}
     ctx.obj['no_config'] = no_config
         
-    # We'll keep the banner display only for the main CLI, but skip it for subcommands
+    # Show banner + key status only on bare `elimu` (no subcommand)
     if len(sys.argv) == 1 or sys.argv[1] not in ['shell', 'research', 'batch-research', 'config']:
         display_banner()
+        display_intro()
+        _show_key_status()
 
 def _check_required_keys(agent_initialization=False):
     """
@@ -299,10 +354,12 @@ def _check_required_keys(agent_initialization=False):
     
     if agent_initialization:
         console.print(Panel(
-            f"[bold {_A}]API keys required[/]\n\n"
-            "Elimu uses Google Gemini for reasoning and Serper.dev for search.\n"
-            "You will be prompted for both keys now.",
-            title=f"[bold {_A}]Configuration Needed[/]",
+            f"[bold {_A}]Two API keys are required:[/]\n\n"
+            f"  [bold]Gemini[/]  [{_I}]https://aistudio.google.com/apikey[/]  [{_D}]free tier available[/]\n"
+            f"  [bold]Serper[/]  [{_I}]https://serper.dev/api-key[/]          [{_D}]2,500 free searches/month[/]\n\n"
+            f"[{_D}]You will be prompted for each key now. "
+            f"Keys are stored in the system keyring by default — never written to disk as plaintext.[/]",
+            title=f"[bold {_A}]Setup Required[/]",
             border_style=BORDER_WARNING,
             box=BOX_PANEL,
         ))
@@ -314,8 +371,10 @@ def _check_required_keys(agent_initialization=False):
             continue
             
         value = ""
+        url = _KEY_URLS.get(key, "")
+        hint = f" ({url})" if url else ""
         while not value:
-            value = click.prompt(f"Enter your {display_name}", hide_input=True).strip()
+            value = click.prompt(f"Enter your {display_name}{hint}", hide_input=True).strip()
             if not value:
                 console.print(f"[{_E}]API key cannot be empty.[/]")
 
