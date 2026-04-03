@@ -190,19 +190,26 @@ hr { border-color: var(--border) !important; margin: 14px 0 !important; }
     background-color: var(--bg) !important;
     border-bottom: 1px solid var(--border) !important;
 }
-/* Keep the sidebar toggle/arrow button visible */
+/* Hide only decorative children inside the toolbar — NOT the whole toolbar.
+   In Streamlit >=1.32 the sidebar toggle lives inside stToolbar; hiding the
+   whole element makes the sidebar permanently inaccessible. */
+[data-testid="stToolbar"] .stAppDeployButton,
+[data-testid="stToolbar"] [data-testid="stDecoration"],
+[data-testid="stToolbar"] .viewerBadge_container__1QSob {
+    display: none !important;
+}
+/* Force the sidebar toggle to always be reachable regardless of parent rules */
 [data-testid="stSidebarCollapsedControl"],
-[data-testid="collapsedControl"] {
+[data-testid="collapsedControl"],
+[data-testid="stSidebarNavToggleButton"] {
+    display: flex !important;
     visibility: visible !important;
     opacity: 1 !important;
 }
-/* Hide only the decorative / branding parts */
 footer { display: none; }
 [data-testid="stDecoration"] { display: none; }
-[data-testid="stToolbar"] { display: none; }
 #MainMenu { visibility: hidden; }
 .viewerBadge_container__1QSob { display: none; }
-/* Suppress Streamlit's running/rerun flash overlay */
 [data-testid="stStatusWidget"] { display: none !important; }
 div.stApp > div:first-child { background: var(--bg) !important; }
 </style>
@@ -430,10 +437,15 @@ Serper.dev search &rarr; BeautifulSoup extraction &rarr; structured lesson outpu
 def main():
     cfg = _load_config()
 
+    # ── Sidebar first — renders on every execution path, including reruns ──────
+    overrides = render_sidebar(cfg)
+    g_key = overrides["gemini_api_key"] or cfg.get("gemini_api_key")
+    s_key = overrides["serper_api_key"] or cfg.get("serper_api_key")
+
     # ── Poll for in-progress agent result ─────────────────────────────────────
     if st.session_state.get("running"):
-        step_q:    queue.Queue    = st.session_state.get("step_q")
-        result_q:  queue.Queue    = st.session_state.get("result_q")
+        step_q:    queue.Queue      = st.session_state.get("step_q")
+        result_q:  queue.Queue      = st.session_state.get("result_q")
         agent_thr: threading.Thread = st.session_state.get("agent_thread")
 
         # Drain new steps into session_state list
@@ -461,11 +473,6 @@ def main():
                 st.session_state["agent_error"] = "Agent stopped unexpectedly."
             st.session_state["running"] = False
             st.rerun()
-
-    # ── Sidebar (must come before main rendering) ─────────────────────────────
-    overrides = render_sidebar(cfg)
-    g_key = overrides["gemini_api_key"] or cfg.get("gemini_api_key")
-    s_key = overrides["serper_api_key"] or cfg.get("serper_api_key")
 
     # ── Header ────────────────────────────────────────────────────────────────
     st.markdown("""
