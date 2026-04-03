@@ -457,7 +457,11 @@ def main():
         )
 
     # ── Query input ───────────────────────────────────────────────────────────
-    if "query_input" not in st.session_state:
+    # Apply any staged prefill BEFORE the widget is instantiated (Streamlit
+    # forbids setting a widget key after its widget has been rendered).
+    if "_prefill" in st.session_state:
+        st.session_state["query_input"] = st.session_state.pop("_prefill")
+    elif "query_input" not in st.session_state:
         st.session_state["query_input"] = ""
 
     running = st.session_state.get("running", False)
@@ -477,7 +481,7 @@ def main():
     for i, ex in enumerate(_EXAMPLES):
         with ex_cols[i % 3]:
             if st.button(ex, key=f"ex_{i}", use_container_width=True, disabled=running):
-                st.session_state["query_input"] = ex
+                st.session_state["_prefill"] = ex
                 st.rerun()
 
     st.write("")
