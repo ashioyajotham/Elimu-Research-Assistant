@@ -184,12 +184,27 @@ section[data-testid="stSidebar"] { background: var(--card) !important; border-ri
 
 /* ── Misc ── */
 hr { border-color: var(--border) !important; margin: 14px 0 !important; }
-/* Hide Streamlit branding but keep the sidebar toggle button visible */
+
+/* Dark-theme the Streamlit header (contains sidebar toggle — must stay visible) */
+[data-testid="stHeader"] {
+    background-color: var(--bg) !important;
+    border-bottom: 1px solid var(--border) !important;
+}
+/* Keep the sidebar toggle/arrow button visible */
+[data-testid="stSidebarCollapsedControl"],
+[data-testid="collapsedControl"] {
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+/* Hide only the decorative / branding parts */
 footer { display: none; }
 [data-testid="stDecoration"] { display: none; }
 [data-testid="stToolbar"] { display: none; }
 #MainMenu { visibility: hidden; }
 .viewerBadge_container__1QSob { display: none; }
+/* Suppress Streamlit's running/rerun flash overlay */
+[data-testid="stStatusWidget"] { display: none !important; }
+div.stApp > div:first-child { background: var(--bg) !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -544,8 +559,10 @@ def main():
 
     # ── Live step display while running ───────────────────────────────────────
     if running:
-        _render_live_steps(st.session_state.get("live_steps", []))
-        time.sleep(1.2)
+        progress_slot = st.empty()
+        with progress_slot:
+            _render_live_steps(st.session_state.get("live_steps", []))
+        time.sleep(0.8)
         st.rerun()
 
     # ── Error ─────────────────────────────────────────────────────────────────
