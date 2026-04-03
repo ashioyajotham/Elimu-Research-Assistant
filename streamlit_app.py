@@ -225,7 +225,17 @@ _EXAMPLES = [
 def _load_config():
     from config.config import get_config, init_config
     init_config()
-    return get_config()
+    cfg = get_config()
+    # Streamlit Cloud: inject keys from st.secrets when keyring is unavailable
+    try:
+        secrets = st.secrets
+        if secrets.get("GEMINI_API_KEY") and not cfg.get("gemini_api_key"):
+            cfg.update("gemini_api_key", secrets["GEMINI_API_KEY"], store_in_keyring=False)
+        if secrets.get("SERPER_API_KEY") and not cfg.get("serper_api_key"):
+            cfg.update("serper_api_key", secrets["SERPER_API_KEY"], store_in_keyring=False)
+    except Exception:
+        pass
+    return cfg
 
 
 def _run_agent_in_thread(
