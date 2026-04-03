@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-04-03
+
+### Added
+- `elimu logs` command — tail and filter `logs/agent.log` by level (debug/info/warning/error)
+- `elimu history` command — view past shell queries from `~/.elimu_research_history`
+- Both new commands listed in the `elimu` banner command table
+
+### Fixed
+- Version display now uses `importlib.metadata` as the authoritative source, eliminating the stale `1.1.1` fallback seen in PyPI-installed packages where `VERSION` file is not on the Python path
+
+## [1.2.2] - 2026-04-03
+
+### Added
+- First-run setup panel: bare `elimu` now shows key status with `[+]`/`[x]` indicators and storage source (keyring/.env)
+- Missing keys include direct signup URLs in the panel and at each prompt
+
+### Changed
+- Setup prompt panel explains that keys are stored in the system keyring — never written to disk as plaintext
+- `elimu config` prompt includes URL hint inline: `https://aistudio.google.com/apikey` and `https://serper.dev/api-key`
+
+## [1.2.1] - 2026-04-03
+
+### Fixed
+- `ModuleNotFoundError: No module named 'elimu_entry'` when running `elimu` from outside the project directory
+- `elimu_entry` now declared under `py-modules` in `pyproject.toml` so it installs correctly in non-editable installs
+- `web-research-agent` `cli.py` shadowing resolved: entry point changed from ambiguous `cli:main` to `elimu_entry:main`
+
+## [1.2.0] - 2026-04-02
+
+### Added
+- Streamlit web app (`streamlit_app.py`): dark academic theme, sidebar config, ReAct trace display, result tabs, markdown download
+- `streamlit` added as optional extra: `pip install elimu-research-assistant[webapp]`
+- OIDC Trusted Publishing for PyPI — removed `PYPI_API_TOKEN` secret dependency
+
+### Changed
+- Centralised Rich colour palette in `utils/console_ui.py` (forest green `#2E7D32` + savanna gold `#F9A825`)
+- All CLI panels, progress bars, and borders updated to use theme constants
+- README rewritten: engineering/architecture focus, removed marketing copy, full config key reference table
+- Answer panels in `elimu shell` and `elimu research` render proper Markdown (bold, headings, bullets)
+
 ## [1.0.3] - 2025-07-22
 
 ### Added

@@ -47,14 +47,18 @@ BANNER = """
 [bold #F9A825]  RESEARCH ASSISTANT[/bold #F9A825]  [grey62]─  ReAct · Gemini 2.x · Serper.dev[/grey62]
 """
 
-# Read version from VERSION file
-def _get_version():
-    """Get version from VERSION file"""
+# Read version — importlib.metadata is authoritative for installed packages;
+# VERSION file is the fallback for editable/dev installs.
+def _get_version() -> str:
     try:
-        version_file = Path(__file__).parent / "VERSION"
-        return version_file.read_text().strip()
+        from importlib.metadata import version as _pkg_version
+        return _pkg_version("elimu-research-assistant")
     except Exception:
-        return "1.1.1"  # Fallback version
+        pass
+    try:
+        return (Path(__file__).parent / "VERSION").read_text().strip()
+    except Exception:
+        return "0.0.0"
 
 __version__ = _get_version()
 
@@ -69,10 +73,12 @@ def display_intro():
     table = Table(box=BOX_TABLE, show_header=False, border_style=BORDER_PRIMARY)
     table.add_column(justify="left", style=f"bold {_A}")
     table.add_column(style=_D)
-    table.add_row("research <query>",    "Run a single research task")
+    table.add_row("research <query>",      "Run a single research task")
     table.add_row("batch-research <file>", "Process tasks from a file")
-    table.add_row("shell",               "Interactive REPL with history")
-    table.add_row("config",              "Configure API keys and model settings")
+    table.add_row("shell",                 "Interactive REPL with history")
+    table.add_row("config",                "API keys and model settings")
+    table.add_row("logs",                  "View agent log entries")
+    table.add_row("history",               "View past research queries")
     console.print(Panel(
         table,
         border_style=BORDER_PRIMARY,
@@ -903,6 +909,144 @@ def _get_file_extension(format):
         return 'html'
     else:
         return 'md'
+
+
+# ── logs command ─────────────────────────────────────────────────────────────
+
+@cli.command()
+@click.option('--lines', '-n', default=40, show_default=True,
+              help="Number of recent log lines to display")
+@click.option('--level', '-l',
+              type=click.Choice(['debug', 'info', 'warning', 'error'], case_sensitive=False),
+              default='warning', show_default=True,
+              help="Minimum log level to show")
+def logs(lines, level):
+    """View recent agent log entries."""
+    log_file = Path(__file__).parent / "logs" / "agent.log"
+    if not log_file.exists():
+        console.print(Panel(
+            f"[{_D}]No log file found at[/] [{_I}]{log_file}[/]\n"
+            "Logs are created after the first research run.",
+            title=f"[bold {_A}]Logs[/]",
+            border_style=BORDER_INFO,
+            box=BOX_PANEL,
+        ))
+        return
+
+    level_order = {'debug': 0, 'info': 1, 'warning': 2, 'error': 3}
+    min_level = level_order[level.lower()]
+
+    level_styles = {
+        'DEBUG':   _D,
+        'INFO':    _I,
+        'WARNING': _W,
+        'ERROR':   _E,
+    }
+
+    with open(log_file, encoding='utf-8', errors='replace') as f:
+        all_lines = f.readlines()
+
+    # Filter by level then take the last N
+    filtered = []
+    for raw in all_lines:
+        for lvl, style in level_styles.items():
+            if f' - {lvl} - ' in raw:
+                if level_order.get(lvl.lower(), 0) >= min_level:
+                    filtered.append((lvl, style, raw.rstrip()))
+                break
+
+    filtered = filtered[-lines:]
+
+    if not filtered:
+        console.print(f"[{_D}]No entries at level {level.upper()} or above in the last {lines} lines.[/]")
+        return
+
+    from rich.table import Table
+    t = Table(box=BOX_TABLE, show_header=True, header_style=f"bold {_A}",
+              border_style=BORDER_INFO)
+    t.add_column("Time", style=_D, width=19, no_wrap=True)
+    t.add_column("Level", width=8)
+    t.add_column("Message")
+
+    for lvl, style, raw in filtered:
+        parts = raw.split(' - ', 3)
+        timestamp = parts[0] if len(parts) > 0 else ''
+        msg = parts[3] if len(parts) > 3 else raw
+        t.add_row(timestamp, f"[{style}]{lvl}[/]", msg)
+
+    console.print(Panel(
+        t,
+        title=f"[bold {_A}]Agent Logs[/] [{_D}](last {len(filtered)} entries >= {level.upper()})[/]",
+        border_style=BORDER_INFO,
+        box=BOX_PANEL,
+    ))
+
+
+# ── history command ───────────────────────────────────────────────────────────
+
+@cli.command()
+@click.option('--limit', '-n', default=20, show_default=True,
+              help="Number of recent queries to show")
+def history(limit):
+    """View past research queries."""
+    history_file = Path.home() / ".elimu_research_history"
+    if not history_file.exists():
+        console.print(Panel(
+            f"[{_D}]No history file found.[/]\n"
+            "History is recorded during interactive shell sessions.",
+            title=f"[bold {_A}]History[/]",
+            border_style=BORDER_INFO,
+            box=BOX_PANEL,
+        ))
+        return
+
+    # prompt_toolkit FileHistory format:
+    #   # <timestamp>
+    #   +<command>   (may be multi-line with leading space for continuations)
+    #   <blank line>
+    entries = []
+    current_cmd = []
+    current_ts = ""
+    with open(history_file, encoding='utf-8', errors='replace') as f:
+        for raw in f:
+            line = raw.rstrip('\n')
+            if line.startswith('# '):
+                if current_cmd:
+                    entries.append((current_ts, ''.join(current_cmd).strip()))
+                    current_cmd = []
+                current_ts = line[2:]
+            elif line.startswith('+'):
+                current_cmd.append(line[1:])
+            elif line.startswith(' ') and current_cmd:
+                current_cmd.append('\n' + line[1:])
+        if current_cmd:
+            entries.append((current_ts, ''.join(current_cmd).strip()))
+
+    # Most recent first, limited
+    entries = [e for e in entries if e[1]]
+    entries = list(reversed(entries))[:limit]
+
+    if not entries:
+        console.print(f"[{_D}]No queries in history yet.[/]")
+        return
+
+    from rich.table import Table
+    t = Table(box=BOX_TABLE, show_header=True, header_style=f"bold {_A}",
+              border_style=BORDER_INFO)
+    t.add_column("#", style=_D, width=4)
+    t.add_column("When", style=_D, width=26)
+    t.add_column("Query")
+
+    for i, (ts, cmd) in enumerate(entries, 1):
+        preview = cmd[:120] + ('...' if len(cmd) > 120 else '')
+        t.add_row(str(i), ts, preview)
+
+    console.print(Panel(
+        t,
+        title=f"[bold {_A}]Research History[/] [{_D}](last {len(entries)})[/]",
+        border_style=BORDER_INFO,
+        box=BOX_PANEL,
+    ))
 
 def main():
     """Entry point for the CLI."""
