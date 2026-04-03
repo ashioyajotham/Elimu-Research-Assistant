@@ -223,19 +223,23 @@ _EXAMPLES = [
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _load_config():
-    from config.config import get_config, init_config
-    init_config()
-    cfg = get_config()
-    # Streamlit Cloud: inject keys from st.secrets when keyring is unavailable
+    # Inject Streamlit Cloud secrets as env vars BEFORE init_config so the
+    # config system finds them on first check and doesn't emit warnings.
     try:
-        secrets = st.secrets
-        if secrets.get("GEMINI_API_KEY") and not cfg.get("gemini_api_key"):
-            cfg.update("gemini_api_key", secrets["GEMINI_API_KEY"], store_in_keyring=False)
-        if secrets.get("SERPER_API_KEY") and not cfg.get("serper_api_key"):
-            cfg.update("serper_api_key", secrets["SERPER_API_KEY"], store_in_keyring=False)
+        import os
+        for secret_key, env_key in (
+            ("GEMINI_API_KEY", "GEMINI_API_KEY"),
+            ("SERPER_API_KEY", "SERPER_API_KEY"),
+        ):
+            val = st.secrets.get(secret_key)
+            if val:
+                os.environ.setdefault(env_key, val)
     except Exception:
         pass
-    return cfg
+
+    from config.config import get_config, init_config
+    init_config()
+    return get_config()
 
 
 def _run_agent_in_thread(
