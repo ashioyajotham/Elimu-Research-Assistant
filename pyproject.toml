@@ -65,6 +65,9 @@ elimu = "elimu_entry:main"
 [tool.setuptools.dynamic]
 version = {file = "VERSION"}
 
+[tool.setuptools]
+py-modules = ["elimu_entry", "cli", "main"]
+
 [tool.setuptools.packages.find]
-include = ["*"]
+include = ["elimu_react*", "config*", "utils*"]
 
