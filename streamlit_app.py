@@ -184,7 +184,11 @@ section[data-testid="stSidebar"] { background: var(--card) !important; border-ri
 
 /* ── Misc ── */
 hr { border-color: var(--border) !important; margin: 14px 0 !important; }
-#MainMenu, footer, header { visibility: hidden; }
+/* Hide Streamlit branding but keep the sidebar toggle button visible */
+footer { display: none; }
+[data-testid="stDecoration"] { display: none; }
+[data-testid="stToolbar"] { display: none; }
+#MainMenu { visibility: hidden; }
 .viewerBadge_container__1QSob { display: none; }
 </style>
 """, unsafe_allow_html=True)
