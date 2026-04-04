@@ -234,6 +234,22 @@ div.stApp > div:first-child { background: var(--bg) !important; }
 # ── Constants ─────────────────────────────────────────────────────────────────
 _MODEL = "gemini-2.0-flash"
 
+# ── Pre-warm heavy imports ────────────────────────────────────────────────────
+# google-generativeai (+ gRPC + protobuf) takes ~11s on a cold Python process.
+# Kicking off the import in a daemon thread at page load means it's in
+# sys.modules by the time the user clicks Run, eliminating the "stuck at
+# Initialising agent..." delay on the first query.
+def _prewarm():
+    try:
+        import google.generativeai  # noqa: F401
+        from elimu_react import build_elimu_agent  # noqa: F401
+    except Exception:
+        pass
+
+if "prewarmed" not in st.session_state:
+    st.session_state["prewarmed"] = True
+    threading.Thread(target=_prewarm, daemon=True).start()
+
 _EXAMPLES = [
     "Create a Form 2 Geography lesson on geothermal energy at Olkaria",
     "Analyse M-Pesa's impact on rural banking — Form 3 Business Studies",
@@ -246,6 +262,11 @@ _EXAMPLES = [
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _load_config():
+    # Return cached instance — config is a singleton; no need to re-run the
+    # keyring scan or st.secrets lookup on every Streamlit rerun.
+    if "cfg" in st.session_state:
+        return st.session_state["cfg"]
+
     # Inject Streamlit Cloud secrets as env vars BEFORE init_config so the
     # config system finds them on first check and doesn't emit warnings.
     try:
@@ -262,7 +283,9 @@ def _load_config():
 
     from config.config import get_config, init_config
     init_config()
-    return get_config()
+    cfg = get_config()
+    st.session_state["cfg"] = cfg
+    return cfg
 
 
 def _run_agent_in_thread(
