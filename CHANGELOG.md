@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.6] - 2026-04-03
+
+### Performance
+- Pre-warm `google-generativeai` (and `elimu_react`) in a daemon thread at page load, eliminating the ~11s "stuck at Initialising agent…" stall on first query
+- Cache `ElimuConfigManager` in `st.session_state` — avoids repeating the keyring backend scan (~0.6s) on every Streamlit rerun
+
+### Fixed
+- Streamlit Cloud: `requirements.txt` was UTF-16 LE (null bytes between characters), causing pip to crash — rewritten as UTF-8, minimal 6-line file without Windows-only packages
+- Streamlit Cloud: `init_config()` emitted API-key warnings before `st.secrets` values were injected; secrets now pushed to `os.environ` first
+- Sidebar toggle inaccessible: `[data-testid="stToolbar"] { display: none }` wiped the whole toolbar including the toggle (Streamlit ≥1.32 moved the toggle inside the toolbar); fixed by targeting only decorative children
+- Sidebar toggle invisible: `header { visibility: hidden }` hid the toggle area; replaced with targeted `[data-testid="stHeader"]` dark-background rule
+- Example prefill caused `StreamlitAPIException` — cannot set a widget's session_state key after it is instantiated; fixed via staging key `"_prefill"` applied before `st.text_area` renders
+
+### Changed
+- Sidebar toggle is always white (`color: #ffffff`, SVG `fill: #ffffff`), with a gold glow + green tint on hover
+- Poll interval reduced from 1.2s to 0.8s for slightly more responsive live-step updates
+- Added `.streamlit/secrets.toml.example` as setup guide for Streamlit Cloud deployment
+
 ## [1.2.5] - 2026-04-03
 
 ### Fixed
